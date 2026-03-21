@@ -165,10 +165,21 @@
     .page-body ul, .page-body ol { padding-left: 1.5em; margin: 0.4em 0 0.6em; }
     .page-body li { margin-bottom: 0.2em; }
     .page-body .tbl-wrap { width: 100%; overflow-x: auto; margin: 1em 0; border-radius: var(--radius-sm); border: 1px solid var(--ink-5); }
-    .page-body table { border-collapse: collapse; width: 100%; min-width: 300px; font-size: 13px; }
-    .page-body td, .page-body th { border: 1px solid var(--ink-5); padding: 7px 10px; text-align: left; min-width: 60px; vertical-align: top; word-break: break-word; }
+    .page-body table { border-collapse: collapse; table-layout: fixed; width: 100%; min-width: 300px; font-size: 13px; }
+    .page-body td, .page-body th { border: 1px solid var(--ink-5); padding: 7px 10px; text-align: left; min-width: 40px; vertical-align: top; word-break: break-word; overflow: hidden; position: relative; }
     .page-body th { background: var(--paper-warm); font-weight: 500; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
     .page-body tr:hover td { background: #fdfcf9; }
+    /* Column resize handle */
+    .col-resize-handle {
+      position: absolute; right: -3px; top: 0; bottom: 0;
+      width: 6px; cursor: col-resize; z-index: 10;
+      background: transparent;
+    }
+    .col-resize-handle:hover, .col-resize-handle.resizing {
+      background: var(--amber);
+      opacity: 0.5;
+    }
+    .page-body table.resizing { cursor: col-resize; user-select: none; }
     mark.uncertain { background: var(--amber-light); border-bottom: 1.5px solid var(--amber-mid); border-radius: 2px; padding: 0 2px; cursor: pointer; font-style: italic; }
 
     /* Page break indicator */
@@ -751,17 +762,28 @@ function renderText(raw) {
     const isTable = lines.length >= 2 && lines[0].includes('|') && lines.some(l => /^[\s|:-]+$/.test(l));
     if (isTable) {
       const dataLines = lines.filter(l => !/^[\s|:-]+$/.test(l));
-      let t = '<div class="tbl-wrap"><table><thead>';
+      // figure out column count from first data row
+      const firstCells = dataLines[0] ? dataLines[0].split('|').map(c=>c.trim()).filter((_,i,a)=>i>0&&i<a.length-1) : [];
+      const colCount = firstCells.length || 1;
+      const colW = Math.max(80, Math.floor(650 / colCount));
+      const colgroup = '<colgroup>' + Array(colCount).fill(0).map(()=>`<col style="width:${colW}px">`).join('') + '</colgroup>';
+      let t = `<div class="tbl-wrap"><table>${colgroup}<thead>`;
       let head = true;
       for (const tl of dataLines) {
         const cells = tl.split('|').map(c => c.trim()).filter((_,i,a) => i > 0 && i < a.length - 1);
         if (!cells.length) continue;
-        if (head) { t += '<tr>' + cells.map(c => `<th contenteditable="true">${esc(c)}</th>`).join('') + '</tr></thead><tbody>'; head = false; }
-        else t += '<tr>' + cells.map(c => `<td contenteditable="true">${esc(c)}</td>`).join('') + '</tr>';
+        if (head) {
+          t += '<tr>' + cells.map(c => `<th contenteditable="true">${esc(c)}<div class="col-resize-handle"></div></th>`).join('') + '</tr></thead><tbody>';
+          head = false;
+        } else {
+          t += '<tr>' + cells.map(c => `<td contenteditable="true">${esc(c)}</td>`).join('') + '</tr>';
+        }
       }
       t += '</tbody></table></div>'; html += t;
     } else {
-      const escaped = esc(trimmed).replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Unclear">$1</mark>');
+      const escaped = esc(trimmed)
+        .replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Unclear">$1</mark>')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
       const isH = trimmed === trimmed.toUpperCase() && trimmed.length > 2 && trimmed.length < 80 && /[A-Z]/.test(trimmed) && !/[.!?]$/.test(trimmed);
       html += isH ? `<h2>${escaped.replace(/\n/g,'<br>')}</h2>` : `<p>${escaped.replace(/\n/g,'<br>')}</p>`;
     }
@@ -934,7 +956,9 @@ function insertTable() {
   const rows = parseInt(prompt('Rows?', '3') || '0');
   const cols = parseInt(prompt('Columns?', '3') || '0');
   if (!rows || !cols) return;
-  let h = '<div class="tbl-wrap"><table><thead><tr>' + Array(cols).fill(0).map((_,i) => `<th contenteditable="true">Header ${i+1}</th>`).join('') + '</tr></thead><tbody>';
+  const cw = Math.max(80, Math.floor(650 / cols));
+  const cg = '<colgroup>' + Array(cols).fill(0).map(()=>`<col style="width:${cw}px">`).join('') + '</colgroup>';
+  let h = `<div class="tbl-wrap"><table>${cg}<thead><tr>` + Array(cols).fill(0).map((_,i) => `<th contenteditable="true">Header ${i+1}<div class="col-resize-handle"></div></th>`).join('') + '</tr></thead><tbody>';
   for (let r = 0; r < rows - 1; r++) h += '<tr>' + Array(cols).fill(0).map(() => '<td contenteditable="true">Cell</td>').join('') + '</tr>';
   h += '</tbody></table></div><p><br></p>';
   document.execCommand('insertHTML', false, h);
@@ -1104,6 +1128,79 @@ window.addEventListener('load', () => {
   const t = localStorage.getItem('digitize_save_time');
   if (t) document.getElementById('sb-saved').textContent = 'Last save: ' + t;
 });
+
+/* ── Resizable table columns ── */
+(function() {
+  let isResizing = false, startX = 0, startW = 0, currentCol = null, currentTable = null;
+
+  document.addEventListener('mousedown', e => {
+    if (!e.target.classList.contains('col-resize-handle')) return;
+    e.preventDefault();
+    isResizing = true;
+    startX = e.clientX;
+    const th = e.target.closest('th');
+    currentCol = th;
+    currentTable = th.closest('table');
+    startW = th.offsetWidth;
+    currentTable.classList.add('resizing');
+    e.target.classList.add('resizing');
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (!isResizing || !currentCol) return;
+    const diff = e.clientX - startX;
+    const newW = Math.max(40, startW + diff);
+    // find col index
+    const th = currentCol;
+    const idx = [...th.parentElement.children].indexOf(th);
+    const cols = currentTable.querySelectorAll('col');
+    if (cols[idx]) cols[idx].style.width = newW + 'px';
+    currentCol.style.width = newW + 'px';
+  });
+
+  document.addEventListener('mouseup', e => {
+    if (!isResizing) return;
+    isResizing = false;
+    if (currentTable) currentTable.classList.remove('resizing');
+    document.querySelectorAll('.col-resize-handle.resizing').forEach(h => h.classList.remove('resizing'));
+    document.body.style.userSelect = '';
+    document.body.style.cursor = '';
+    currentCol = null; currentTable = null;
+  });
+
+  // Touch support
+  document.addEventListener('touchstart', e => {
+    if (!e.target.classList.contains('col-resize-handle')) return;
+    e.preventDefault();
+    isResizing = true;
+    startX = e.touches[0].clientX;
+    const th = e.target.closest('th');
+    currentCol = th;
+    currentTable = th.closest('table');
+    startW = th.offsetWidth;
+    currentTable.classList.add('resizing');
+  }, { passive: false });
+
+  document.addEventListener('touchmove', e => {
+    if (!isResizing || !currentCol) return;
+    const diff = e.touches[0].clientX - startX;
+    const newW = Math.max(40, startW + diff);
+    const idx = [...currentCol.parentElement.children].indexOf(currentCol);
+    const cols = currentTable.querySelectorAll('col');
+    if (cols[idx]) cols[idx].style.width = newW + 'px';
+    currentCol.style.width = newW + 'px';
+  }, { passive: true });
+
+  document.addEventListener('touchend', () => {
+    if (!isResizing) return;
+    isResizing = false;
+    if (currentTable) currentTable.classList.remove('resizing');
+    currentCol = null; currentTable = null;
+  });
+})();
+
 </script>
 </body>
 </html>
