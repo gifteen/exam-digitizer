@@ -788,68 +788,171 @@ async function digitalPdfToPages(pdf, filename) {
     }
 
     // ── STEP 5: Build page HTML ──
-    const pageAvgFs = lines.reduce((s, l) => s + (l.items[0]?.fs || 10), 0) / (lines.length || 1);
+    // Re-run merge with WIDER gap threshold to keep column items separate
+    // We need items that are far apart (>40px) to stay as separate column slots
+    const colLines = rawLines.map(line => {
+      line.rawItems.sort((a, b) => a.x - b.x);
+      const merged = [];
+      for (const item of line.rawItems) {
+        if (merged.length === 0) { merged.push({ ...item }); continue; }
+        const prev = merged[merged.length - 1];
+        const prevEnd = prev.x + (prev.w || prev.text.length * prev.fs * 0.55);
+        const gap = item.x - prevEnd;
+        // Only merge if very close — keep column-separated items separate
+        if (gap < 3) {
+          prev.text += item.text;
+          prev.w = (item.x + (item.w || 0)) - prev.x;
+        } else if (gap < 12) {
+          prev.text += ' ' + item.text;
+          prev.w = (item.x + (item.w || 0)) - prev.x;
+        } else {
+          // Significant gap — new column slot
+          merged.push({ ...item });
+        }
+      }
+      return { y: line.y, items: merged };
+    }).filter(l => l.items.length > 0 && l.items.some(it => it.text.trim()));
+
+    // Recompute col zones on colLines
+    const allX2 = [];
+    colLines.forEach(l => l.items.forEach(it => allX2.push(Math.round(it.x))));
+    const colZones2 = [];
+    const sortedX2 = [...new Set(allX2)].sort((a, b) => a - b);
+    const COL_BAND2 = 25;
+    for (const x of sortedX2) {
+      const ex = colZones2.find(z => Math.abs(z.center - x) < COL_BAND2);
+      if (ex) { ex.xs.push(x); ex.center = ex.xs.reduce((s, v) => s + v, 0) / ex.xs.length; }
+      else colZones2.push({ center: x, xs: [x] });
+    }
+    colZones2.sort((a, b) => a.center - b.center);
+
+    function getSlot(x) {
+      let best = 0, bestD = Infinity;
+      colZones2.forEach((z, i) => { const d = Math.abs(z.center - x); if (d < bestD) { bestD = d; best = i; } });
+      return best;
+    }
+
+    function colLineCols(line) {
+      return [...new Set(line.items.map(it => getSlot(it.x)))];
+    }
+
+    // A line is tabular if it has 2+ distinct column slots AND items span more than 30% of page width
+    // AND it does NOT look like a signature block (all-text, no numbers, only 2 items)
+    const pageWidth = viewport.width;
+    function looksLikeSignature(line) {
+      // Signature lines: only 2 items, both all-text (names/titles), no numbers, no dashes content
+      if (line.items.length !== 2) return false;
+      const texts = line.items.map(it => it.text.trim());
+      const hasNumbers = texts.some(t => /\d/.test(t));
+      const hasDashes = texts.some(t => /^[-_]+$/.test(t));
+      const allWords = texts.every(t => /^[A-Za-z\/\.\s,]+$/.test(t));
+      return !hasNumbers && !hasDashes && allWords;
+    }
+
+    function looksLikeDashLine(line) {
+      const fullText = line.items.map(it => it.text).join('');
+      return /^[-_\s]+$/.test(fullText);
+    }
+
+    function isTabularLine(line) {
+      if (line.items.length < 2) return false;
+      if (looksLikeSignature(line)) return false;
+      if (looksLikeDashLine(line)) return false;
+      const cols = colLineCols(line);
+      if (cols.length < 2) return false;
+      const xMin = Math.min(...line.items.map(it => it.x));
+      const xMax = Math.max(...line.items.map(it => it.x + (it.w || it.text.length * (it.fs || 10) * 0.5)));
+      return (xMax - xMin) > pageWidth * 0.25;
+    }
+
+    // A table run is valid only if at least one of its rows contains a number (amount/value)
+    function isValidTableRun(run) {
+      return run.some(l => l.items.some(it => /[0-9]/.test(it.text)));
+    }
+
+    const pageAvgFs = colLines.reduce((s, l) => s + (l.items[0]?.fs || 10), 0) / (colLines.length || 1);
     let html = '';
     let i = 0;
 
-    while (i < lines.length) {
-      const line = lines[i];
+    while (i < colLines.length) {
+      const line = colLines[i];
       const lineText = line.items.map(it => it.text).join(' ').trim();
       if (!lineText) { i++; continue; }
 
-      // Detect if this starts a table block
+      // Handle dash/signature lines as formatted paragraphs
+      if (looksLikeDashLine(line)) {
+        html += `<p style="letter-spacing:2px;color:var(--ink-3);">${escHtml(lineText)}</p>`;
+        i++; continue;
+      }
+
+      // Handle signature blocks — render as a two-column flex row
+      if (looksLikeSignature(line)) {
+        const cols = line.items.map(it => escHtml(it.text.trim()));
+        html += `<div style="display:flex;justify-content:space-between;margin:0.4em 0;">` +
+          cols.map(c => `<span>${c}</span>`).join('') + `</div>`;
+        i++; continue;
+      }
+
+      // Detect table run
       const tabularRun = [];
       let j = i;
-      while (j < lines.length) {
-        const l = lines[j];
+      while (j < colLines.length) {
+        const l = colLines[j];
         const lt = l.items.map(it => it.text).join(' ').trim();
         if (!lt) { j++; continue; }
-        if (isTabular(l)) { tabularRun.push(l); j++; }
+        if (isTabularLine(l)) { tabularRun.push(l); j++; }
         else break;
       }
 
-      if (tabularRun.length >= 2) {
-        // Figure out column count from the line with most columns
-        const maxCols = Math.max(...tabularRun.map(l => lineColIndices(l).length));
-        const numCols = Math.max(maxCols, 2);
+      if (tabularRun.length >= 2 && isValidTableRun(tabularRun)) {
+        // Find max columns used
+        const allSlots = new Set();
+        tabularRun.forEach(l => colLineCols(l).forEach(s => allSlots.add(s)));
+        const sortedSlots = [...allSlots].sort((a, b) => a - b);
+        const numCols = sortedSlots.length;
         const colW = Math.max(60, Math.floor(650 / numCols));
-        const cg = '<colgroup>' + Array(numCols).fill(0).map(() => `<col style="width:${colW}px">`).join('') + '</colgroup>';
+        const cg = '<colgroup>' + sortedSlots.map(() => `<col style="width:${colW}px">`).join('') + '</colgroup>';
+
+        const buildCells = (rowLine) => {
+          const cells = {};
+          sortedSlots.forEach(s => cells[s] = '');
+          rowLine.items.forEach(it => {
+            const slot = getSlot(it.x);
+            const nearest = sortedSlots.reduce((prev, cur) => Math.abs(cur - slot) < Math.abs(prev - slot) ? cur : prev);
+            cells[nearest] = (cells[nearest] ? cells[nearest] + ' ' : '') + it.text;
+          });
+          return sortedSlots.map(s => cells[s]);
+        };
 
         let tbl = `<div class="tbl-wrap"><table>${cg}<thead><tr>`;
-        // Header row
-        const headerLine = tabularRun[0];
-        const headerCells = Array(numCols).fill('');
-        headerLine.items.forEach(it => {
-          const col = getColIndex(it.x);
-          const slot = colZones.indexOf(colZones.find(z => Math.abs(z.center - it.x) < COL_BAND));
-          const normalised = Math.min(slot, numCols - 1);
-          headerCells[normalised] = (headerCells[normalised] ? headerCells[normalised] + ' ' : '') + it.text;
+        buildCells(tabularRun[0]).forEach(c => {
+          tbl += `<th contenteditable="true">${escHtml(c)}<div class="col-resize-handle"></div></th>`;
         });
-        tbl += headerCells.map(c => `<th contenteditable="true">${escHtml(c)}<div class="col-resize-handle"></div></th>`).join('');
         tbl += '</tr></thead><tbody>';
-
-        // Body rows
         for (let r = 1; r < tabularRun.length; r++) {
-          const rowLine = tabularRun[r];
-          const rowCells = Array(numCols).fill('');
-          rowLine.items.forEach(it => {
-            const slot = colZones.indexOf(colZones.find(z => Math.abs(z.center - it.x) < COL_BAND));
-            const normalised = Math.min(Math.max(slot, 0), numCols - 1);
-            rowCells[normalised] = (rowCells[normalised] ? rowCells[normalised] + ' ' : '') + it.text;
-          });
-          tbl += '<tr>' + rowCells.map(c => `<td contenteditable="true">${escHtml(c)}</td>`).join('') + '</tr>';
+          tbl += '<tr>' + buildCells(tabularRun[r]).map(c => `<td contenteditable="true">${escHtml(c)}</td>`).join('') + '</tr>';
         }
         tbl += '</tbody></table></div>';
         html += tbl;
         i = j;
         continue;
+      } else if (tabularRun.length >= 2 && !isValidTableRun(tabularRun)) {
+        // Looks tabular but no numbers — render each line as spaced paragraph
+        tabularRun.forEach(l => {
+          const lt = l.items.map(it => it.text).join('  ').trim();
+          html += `<p>${escHtml(lt)}</p>`;
+        });
+        i = j;
+        continue;
       }
 
-      // Regular line
+      // Regular line — use merged (word-fixed) version
+      const mergedLine = lines.find(l => Math.abs(l.y - line.y) < 8);
+      const mergedText = mergedLine ? mergedLine.items.map(it => it.text).join(' ').trim() : lineText;
       const fs = line.items[0]?.fs || 10;
-      const isHeading = fs > pageAvgFs * 1.2 || lineText === lineText.toUpperCase() && lineText.length > 3 && /[A-Z]/.test(lineText);
-      const isBold = line.items.some(it => it.fontName.toLowerCase().includes('bold'));
-      const escaped = escHtml(lineText);
+      const isHeading = fs > pageAvgFs * 1.2 || (mergedText === mergedText.toUpperCase() && mergedText.length > 3 && /[A-Z]/.test(mergedText) && !/[0-9]/.test(mergedText));
+      const isBold = line.items.some(it => it.fontName && it.fontName.toLowerCase().includes('bold'));
+      const escaped = escHtml(mergedText);
 
       if (isHeading) {
         html += `<h2>${escaped}</h2>`;
