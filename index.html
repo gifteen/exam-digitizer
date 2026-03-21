@@ -781,12 +781,18 @@ async function digitalPdfToPages(pdf, filename) {
       .filter(l => l.fullText);
 
     // 5. Detect table blocks
-    // A line is "table-like" if it has 2+ cells spanning >15% of page
     function isTableLike(l) {
       if (l.cells.length < 2) return false;
-      if (l.spanPct < 0.15) return false;
-      // Allow header rows (S/N, ITEM, AMOUNT etc) and data rows
-      return true;
+      if (l.spanPct < 0.2) return false;
+      const fullText = l.cells.map(c => c.text).join(' ');
+      // Must have a number, OR be a known header keyword
+      const hasNumber = /\d{2,}/.test(fullText);
+      const isHeader = /(S\/N|ITEM|AMOUNT|TOTAL|SUBJECT|TEST|EXAM|GRADE|BALANCE|B\/F|DESCRIPTION)/i.test(fullText);
+      // Exclude lines that look like signatures (2 cells, no numbers, both short names)
+      const looksSignature = l.cells.length === 2 && !hasNumber &&
+        l.cells.every(c => c.text.length < 40 && /^[A-Za-z\s\.]+$/.test(c.text.replace(/[,\']/,'')));
+      if (looksSignature) return false;
+      return hasNumber || isHeader;
     }
 
     // 6. Build HTML
@@ -813,9 +819,11 @@ async function digitalPdfToPages(pdf, filename) {
           if (/^[-_ ]{3,}$/.test(l.fullText)) break;
           if (isTableLike(l)) { tableRun.push(l); j++; }
           else {
-            // Include non-table lines that look like data rows (number + text + numbers)
+            // Include sub-items that belong to the table (like "a) Youth/Children - N1,619,120")
             const looksData = /^\d+\.?\s+\S/.test(l.fullText) && /\d{2,}/.test(l.fullText);
-            if (looksData && tableRun.length > 0) { tableRun.push(l); j++; }
+            const looksSubItem = /^[a-zA-Z]\)/.test(l.fullText.trim()) && /\d/.test(l.fullText);
+            const looksTotal = /^(total|balance|b\/f|grand)/i.test(l.fullText.trim());
+            if ((looksData || looksSubItem || looksTotal) && tableRun.length > 0) { tableRun.push(l); j++; }
             else break;
           }
         }
@@ -1523,8 +1531,9 @@ async function exportDocx() {
   // Access docx library - it exposes everything via window.docx
   const docxLib = window.docx;
   const { Document, Packer, Paragraph, TextRun, HeadingLevel,
-          Table, TableRow, TableCell, WidthType, BorderStyle, ShadingType,
-          AlignmentType } = docxLib;
+          Table, TableRow, TableCell, WidthType, BorderStyle } = docxLib;
+  // ShadingType may not be available in all bundle versions
+  const ShadingType = docxLib.ShadingType || { CLEAR: 'clear' };
 
   function makeBorder() {
     const b = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
