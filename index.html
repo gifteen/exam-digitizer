@@ -12,382 +12,264 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --paper: #faf9f6;
-      --paper-warm: #f4f1eb;
+      --paper: #f0ede6;
+      --paper-warm: #e8e4db;
       --ink: #1c1a16;
       --ink-2: #4a4740;
       --ink-3: #8a8780;
       --ink-4: #c4c1b8;
-      --ink-5: #e8e5de;
+      --ink-5: #dedad2;
+      --surface: #fff;
       --amber: #d47c0a;
       --amber-light: #fef3dc;
       --amber-mid: #f9d98a;
-      --red: #c0392b;
-      --red-light: #fdf0ee;
-      --green: #2d6a4f;
-      --green-light: #edf7f1;
-      --surface: #fff;
+      --red: #c0392b; --red-light: #fdf0ee;
+      --green: #2d6a4f; --green-light: #edf7f1;
       --topbar: 52px;
       --left-w: 200px;
-      --right-w: 260px;
-      --radius: 8px;
-      --radius-sm: 5px;
+      --right-w: 270px;
+      --radius: 8px; --radius-sm: 5px;
+      --page-w: 794px;
+      --page-h: 1123px;
+      --page-margin: 72px;
+      --zoom: 1;
     }
     html { scroll-behavior: smooth; }
     body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); font-size: 14px; line-height: 1.6; min-height: 100vh; -webkit-font-smoothing: antialiased; }
 
     /* ── TOPBAR ── */
-    .topbar {
-      position: fixed; top: 0; left: 0; right: 0; height: var(--topbar);
-      background: var(--surface); border-bottom: 1px solid var(--ink-5);
-      display: flex; align-items: center; padding: 0 1rem; gap: 8px; z-index: 200;
-    }
+    .topbar { position: fixed; top: 0; left: 0; right: 0; height: var(--topbar); background: var(--surface); border-bottom: 1px solid var(--ink-5); display: flex; align-items: center; padding: 0 1rem; gap: 6px; z-index: 200; }
     .brand { display: flex; align-items: center; gap: 8px; margin-right: auto; }
     .brand-mark { width: 28px; height: 28px; background: var(--ink); border-radius: 6px; display: flex; align-items: center; justify-content: center; }
     .brand-mark svg { width: 14px; height: 14px; fill: none; stroke: var(--paper); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
     .brand-name { font-family: 'DM Serif Display', serif; font-size: 17px; color: var(--ink); letter-spacing: -0.01em; }
     .brand-beta { font-size: 10px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink-3); background: var(--paper-warm); border: 1px solid var(--ink-5); border-radius: 3px; padding: 1px 5px; text-transform: uppercase; }
     .tb-sep { width: 1px; height: 20px; background: var(--ink-5); margin: 0 2px; }
-    .tb-btn {
-      display: inline-flex; align-items: center; gap: 5px; padding: 6px 12px;
-      border: 1px solid var(--ink-5); border-radius: var(--radius-sm);
-      font-size: 12.5px; font-weight: 500; cursor: pointer;
-      background: var(--surface); color: var(--ink-2); font-family: 'DM Sans', sans-serif;
-      transition: all 0.12s; white-space: nowrap;
-    }
+    .tb-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border: 1px solid var(--ink-5); border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 500; cursor: pointer; background: var(--surface); color: var(--ink-2); font-family: 'DM Sans', sans-serif; transition: all 0.12s; white-space: nowrap; }
     .tb-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
     .tb-btn:hover { background: var(--paper-warm); border-color: var(--ink-4); color: var(--ink); }
     .tb-btn:active { transform: scale(0.97); }
     .tb-btn.accent { background: var(--amber); color: #fff; border-color: var(--amber); }
-    .tb-btn.accent:hover { background: #b8690a; border-color: #b8690a; }
+    .tb-btn.accent:hover { background: #b8690a; }
     .tb-btn.ghost { border-color: transparent; color: var(--ink-3); }
     .tb-btn.ghost:hover { background: var(--paper-warm); border-color: var(--ink-5); color: var(--ink-2); }
-    .tb-btn.icon-only { padding: 6px 8px; }
     .tb-btn:disabled { opacity: 0.35; pointer-events: none; }
-    .tb-btn.save-btn.saved { color: var(--green); border-color: #b7dfc9; background: var(--green-light); }
+    .tb-btn.icon-only { padding: 6px 8px; }
+    .zoom-controls { display: flex; align-items: center; gap: 2px; }
+    .zoom-label { font-size: 12px; color: var(--ink-3); min-width: 38px; text-align: center; }
 
     /* ── LAYOUT ── */
-    .layout {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      padding-top: var(--topbar);
-      min-height: 100vh;
-    }
+    .layout { display: grid; grid-template-columns: auto 1fr auto; padding-top: var(--topbar); min-height: 100vh; }
 
     /* ── LEFT SIDEBAR ── */
-    .left-sidebar {
-      width: var(--left-w);
-      background: var(--surface);
-      border-right: 1px solid var(--ink-5);
-      display: flex;
-      flex-direction: column;
-      position: sticky;
-      top: var(--topbar);
-      height: calc(100vh - var(--topbar));
-      overflow-y: auto;
-      transition: width 0.2s ease;
-      flex-shrink: 0;
-    }
-    .left-sidebar.collapsed { width: 40px; overflow: hidden; }
-    .left-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 10px 10px 10px 12px;
-      border-bottom: 1px solid var(--ink-5);
-      min-height: 40px;
-      flex-shrink: 0;
-    }
-    .left-header-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+    .left-sidebar { width: var(--left-w); background: var(--surface); border-right: 1px solid var(--ink-5); display: flex; flex-direction: column; position: sticky; top: var(--topbar); height: calc(100vh - var(--topbar)); overflow: hidden; transition: width 0.2s ease; flex-shrink: 0; }
+    .left-sidebar.collapsed { width: 40px; }
+    .sidebar-header { display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 9px 12px; border-bottom: 1px solid var(--ink-5); min-height: 40px; flex-shrink: 0; }
+    .sidebar-header-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+    .left-sidebar.collapsed .sidebar-header { justify-content: center; padding: 9px; }
+    .left-sidebar.collapsed .sidebar-header-label,
+    .left-sidebar.collapsed .page-list { display: none; }
     .collapse-btn { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; background: none; color: var(--ink-3); border-radius: 4px; flex-shrink: 0; }
     .collapse-btn:hover { background: var(--paper-warm); color: var(--ink); }
     .collapse-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
     .left-sidebar.collapsed .collapse-btn svg { transform: rotate(180deg); }
-    .left-sidebar.collapsed .left-header-label,
-    .left-sidebar.collapsed .page-list { display: none; }
-    .left-sidebar.collapsed .left-header { justify-content: center; padding: 10px; }
+    .page-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
 
-    .page-list { padding: 8px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
-    .page-thumb {
-      border: 1px solid var(--ink-5); border-radius: var(--radius-sm);
-      padding: 8px; cursor: pointer; transition: all 0.12s;
-      background: var(--paper);
-    }
-    .page-thumb:hover { border-color: var(--amber); background: var(--amber-light); }
-    .page-thumb.active { border-color: var(--amber); background: var(--amber-light); }
-    .page-thumb-num { font-size: 10px; font-weight: 500; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3px; }
-    .page-thumb-preview { font-size: 11px; color: var(--ink-2); line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
-    .page-thumb-name { font-size: 10px; color: var(--ink-4); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    .left-empty { padding: 16px 12px; font-size: 12px; color: var(--ink-4); line-height: 1.5; text-align: center; }
+    /* Page thumb */
+    .page-thumb { border: 1px solid var(--ink-5); border-radius: var(--radius-sm); overflow: hidden; cursor: pointer; transition: all 0.12s; background: var(--paper); }
+    .page-thumb:hover { border-color: var(--amber); }
+    .page-thumb.active { border-color: var(--amber); box-shadow: 0 0 0 2px var(--amber-light); }
+    .thumb-preview { width: 100%; height: 90px; object-fit: cover; object-position: top; display: block; background: #f8f7f4; }
+    .thumb-canvas { width: 100%; height: 90px; display: block; }
+    .thumb-placeholder { width: 100%; height: 90px; background: var(--paper-warm); display: flex; align-items: center; justify-content: center; }
+    .thumb-placeholder svg { width: 20px; height: 20px; stroke: var(--ink-4); fill: none; stroke-width: 1.5; stroke-linecap: round; }
+    .thumb-info { padding: 5px 7px; }
+    .thumb-num { font-size: 10px; font-weight: 500; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
+    .thumb-name { font-size: 10px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+    .thumb-actions { display: flex; gap: 2px; padding: 3px 5px; border-top: 1px solid var(--ink-5); background: var(--paper-warm); }
+    .thumb-action { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; color: var(--ink-3); border-radius: 3px; }
+    .thumb-action:hover { background: var(--ink-5); color: var(--ink); }
+    .thumb-action svg { width: 10px; height: 10px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .left-empty { padding: 14px 10px; font-size: 11.5px; color: var(--ink-4); line-height: 1.5; text-align: center; }
 
     /* ── MAIN EDITOR ── */
-    .editor-area { min-width: 0; display: flex; flex-direction: column; border-right: 1px solid var(--ink-5); }
+    .editor-area { min-width: 0; display: flex; flex-direction: column; }
 
     /* Formatting toolbar */
-    .fmt-toolbar {
-      position: sticky; top: var(--topbar);
-      background: var(--surface); border-bottom: 1px solid var(--ink-5);
-      padding: 6px 1.5rem; display: flex; align-items: center; gap: 2px;
-      z-index: 50; flex-wrap: wrap; row-gap: 4px;
-    }
-    .fmt-btn {
-      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
-      border: 1px solid transparent; border-radius: var(--radius-sm);
-      cursor: pointer; background: transparent; color: var(--ink-2);
-      font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; transition: all 0.1s;
-    }
-    .fmt-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .fmt-toolbar { position: sticky; top: var(--topbar); background: var(--surface); border-bottom: 1px solid var(--ink-5); padding: 5px 1rem; display: flex; align-items: center; gap: 2px; z-index: 50; flex-wrap: wrap; row-gap: 3px; }
+    .fmt-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid transparent; border-radius: var(--radius-sm); cursor: pointer; background: transparent; color: var(--ink-2); font-size: 12.5px; font-weight: 500; transition: all 0.1s; font-family: 'DM Sans', sans-serif; }
+    .fmt-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .fmt-btn:hover { background: var(--paper-warm); border-color: var(--ink-5); color: var(--ink); }
     .fmt-btn.active { background: var(--paper-warm); border-color: var(--ink-4); }
-    .fmt-sep { width: 1px; height: 18px; background: var(--ink-5); margin: 0 3px; }
-
-    /* Font controls inline in toolbar */
-    .font-select, .size-select {
-      padding: 4px 6px; border: 1px solid var(--ink-5); border-radius: var(--radius-sm);
-      font-size: 12px; font-family: 'DM Sans', sans-serif; background: var(--surface);
-      color: var(--ink-2); cursor: pointer; outline: none;
-    }
-    .font-select { width: 110px; }
-    .size-select { width: 54px; }
-    .font-select:focus, .size-select:focus { border-color: var(--amber); }
+    .fmt-sep { width: 1px; height: 16px; background: var(--ink-5); margin: 0 3px; }
+    .fmt-select { padding: 4px 6px; border: 1px solid var(--ink-5); border-radius: var(--radius-sm); font-size: 11.5px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--ink-2); cursor: pointer; outline: none; }
+    .fmt-select:focus { border-color: var(--amber); }
+    #font-select { width: 100px; }
+    #size-select { width: 50px; }
     .color-btn { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--ink-5); cursor: pointer; padding: 0; background: none; position: relative; overflow: hidden; }
-    .color-btn input[type=color] { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); opacity: 0; cursor: pointer; }
+    .color-btn input { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); opacity: 0; cursor: pointer; }
     .color-preview { width: 100%; height: 100%; border-radius: 50%; background: var(--ink); }
 
+    /* Align buttons */
+    .align-btns { display: flex; gap: 1px; }
+
     /* Find & Replace */
-    .fnr-bar {
-      display: none; align-items: center; gap: 8px;
-      padding: 7px 1.5rem; background: var(--paper-warm);
-      border-bottom: 1px solid var(--ink-5); flex-wrap: wrap;
-    }
+    .fnr-bar { display: none; align-items: center; gap: 8px; padding: 6px 1rem; background: var(--paper-warm); border-bottom: 1px solid var(--ink-5); flex-wrap: wrap; }
     .fnr-bar.open { display: flex; }
-    .fnr-label { font-size: 11px; font-weight: 500; color: var(--ink-3); letter-spacing: 0.03em; white-space: nowrap; }
-    .fnr-input {
-      padding: 5px 9px; border: 1px solid var(--ink-4); border-radius: var(--radius-sm);
-      font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--surface);
-      color: var(--ink); outline: none; width: 150px;
-    }
+    .fnr-label { font-size: 11px; font-weight: 500; color: var(--ink-3); white-space: nowrap; }
+    .fnr-input { padding: 5px 9px; border: 1px solid var(--ink-4); border-radius: var(--radius-sm); font-size: 12.5px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--ink); outline: none; width: 140px; }
     .fnr-input:focus { border-color: var(--amber); box-shadow: 0 0 0 2px var(--amber-light); }
-    .fnr-count { font-size: 11.5px; color: var(--ink-3); min-width: 60px; }
+    .fnr-count { font-size: 11.5px; color: var(--ink-3); min-width: 55px; }
 
-    /* Pages scroll area */
-    .pages-scroll { flex: 1; padding: 2rem 2rem 6rem; display: flex; flex-direction: column; gap: 2rem; align-items: center; overflow-y: auto; }
+    /* Pages scroll */
+    .pages-scroll { flex: 1; padding: 2rem 1.5rem 6rem; display: flex; flex-direction: column; gap: 2.5rem; align-items: center; overflow-y: auto; }
 
-    /* Single page card */
+    /* Page card — A4 by default */
     .page-card {
-      width: 100%; max-width: 720px;
+      width: var(--page-w);
+      min-height: var(--page-h);
       background: var(--surface);
       border: 1px solid var(--ink-5);
-      border-radius: var(--radius);
-      box-shadow: 0 2px 12px rgba(28,26,22,0.06);
-      overflow: hidden;
+      border-radius: 2px;
+      box-shadow: 0 2px 16px rgba(28,26,22,0.1), 0 1px 3px rgba(28,26,22,0.06);
+      transform: scale(var(--zoom));
+      transform-origin: top center;
+      transition: transform 0.15s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
     }
-    .page-card-header {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 16px; background: var(--paper-warm);
-      border-bottom: 1px solid var(--ink-5); gap: 10px;
-    }
-    .page-card-label { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
-    .page-card-filename { font-size: 11px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-    .page-card-actions { display: flex; gap: 4px; flex-shrink: 0; }
-    .page-action-btn {
-      width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
-      border: none; background: none; cursor: pointer; color: var(--ink-3); border-radius: 4px;
-    }
+    .page-card-header { display: flex; align-items: center; justify-content: space-between; padding: 6px 14px; background: var(--paper-warm); border-bottom: 1px solid var(--ink-5); gap: 8px; flex-shrink: 0; }
+    .page-card-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+    .page-card-filename { font-size: 10.5px; color: var(--ink-4); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; flex: 1; }
+    .page-card-actions { display: flex; gap: 2px; flex-shrink: 0; }
+    .page-action-btn { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; color: var(--ink-3); border-radius: 3px; }
     .page-action-btn:hover { background: var(--ink-5); color: var(--ink); }
-    .page-action-btn svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .page-action-btn svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-    /* Page editable body */
+    /* Editable body — respects page margin */
     .page-body {
-      padding: 2rem 2.5rem;
+      flex: 1;
+      padding: var(--page-margin);
       outline: none;
-      min-height: 200px;
       font-size: 14px;
-      line-height: 1.9;
+      line-height: 1.85;
       color: var(--ink);
       caret-color: var(--amber);
+      min-height: calc(var(--page-h) - 34px);
     }
-    .page-body:focus { box-shadow: inset 0 0 0 2px var(--amber-light); }
+    .page-body:focus { outline: none; }
     .page-body p { margin-bottom: 0.5em; }
-    .page-body h2 { font-family: 'DM Serif Display', serif; font-size: 17px; font-weight: 400; margin: 1.2em 0 0.4em; letter-spacing: -0.01em; }
+    .page-body h2 { font-family: 'DM Serif Display', serif; font-size: 17px; font-weight: 400; margin: 1.2em 0 0.4em; }
     .page-body h3 { font-size: 12px; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); margin: 1em 0 0.3em; }
     .page-body ul, .page-body ol { padding-left: 1.5em; margin: 0.4em 0 0.6em; }
     .page-body li { margin-bottom: 0.2em; }
-
-    /* TABLE — fully responsive */
     .page-body .tbl-wrap { width: 100%; overflow-x: auto; margin: 1em 0; border-radius: var(--radius-sm); border: 1px solid var(--ink-5); }
-    .page-body table { border-collapse: collapse; width: 100%; min-width: 400px; font-size: 13px; }
-    .page-body td, .page-body th {
-      border: 1px solid var(--ink-5); padding: 8px 12px; text-align: left;
-      min-width: 80px; vertical-align: top; word-break: break-word;
-    }
-    .page-body th { background: var(--paper-warm); font-weight: 500; font-size: 11.5px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
+    .page-body table { border-collapse: collapse; width: 100%; min-width: 300px; font-size: 13px; }
+    .page-body td, .page-body th { border: 1px solid var(--ink-5); padding: 7px 10px; text-align: left; min-width: 60px; vertical-align: top; word-break: break-word; }
+    .page-body th { background: var(--paper-warm); font-weight: 500; font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); }
     .page-body tr:hover td { background: #fdfcf9; }
+    mark.uncertain { background: var(--amber-light); border-bottom: 1.5px solid var(--amber-mid); border-radius: 2px; padding: 0 2px; cursor: pointer; font-style: italic; }
 
-    mark.uncertain {
-      background: var(--amber-light); border-bottom: 1.5px solid var(--amber-mid);
-      border-radius: 2px; padding: 0 2px; cursor: pointer; font-style: italic;
-    }
+    /* Page break indicator */
+    .page-break-line { width: 100%; height: 1px; background: repeating-linear-gradient(90deg, var(--amber) 0, var(--amber) 6px, transparent 6px, transparent 12px); margin: 1em 0; position: relative; cursor: default; }
+    .page-break-line::after { content: 'Page Break'; position: absolute; left: 50%; transform: translateX(-50%); top: -9px; font-size: 9px; color: var(--amber); background: var(--surface); padding: 0 6px; letter-spacing: 0.05em; text-transform: uppercase; }
 
-    /* Empty + processing states */
-    .empty-state {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      min-height: 60vh; text-align: center; gap: 0; width: 100%;
-    }
-    .empty-icon { width: 68px; height: 68px; background: var(--paper-warm); border: 1px solid var(--ink-5); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; }
-    .empty-icon svg { width: 30px; height: 30px; stroke: var(--ink-3); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .empty-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--ink); margin-bottom: 8px; letter-spacing: -0.02em; }
-    .empty-sub { font-size: 13px; color: var(--ink-3); max-width: 280px; margin-bottom: 22px; line-height: 1.6; }
-    .empty-upload-btn {
-      display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px;
-      background: var(--ink); color: var(--paper); border: none; border-radius: var(--radius);
-      font-size: 13.5px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif;
-      transition: all 0.15s;
-    }
-    .empty-upload-btn svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    /* Empty + proc states */
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center; gap: 0; width: 100%; }
+    .empty-icon { width: 64px; height: 64px; background: var(--paper-warm); border: 1px solid var(--ink-5); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; }
+    .empty-icon svg { width: 28px; height: 28px; stroke: var(--ink-3); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .empty-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: var(--ink); margin-bottom: 8px; }
+    .empty-sub { font-size: 13px; color: var(--ink-3); max-width: 280px; margin-bottom: 20px; line-height: 1.6; }
+    .empty-upload-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 22px; background: var(--ink); color: var(--paper); border: none; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+    .empty-upload-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
     .empty-upload-btn:hover { background: var(--ink-2); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(28,26,22,0.15); }
-    .empty-formats { font-size: 11.5px; color: var(--ink-4); margin-top: 10px; }
-
-    .proc-card {
-      width: 100%; max-width: 720px;
-      background: var(--surface); border: 1px solid var(--ink-5); border-radius: var(--radius);
-      padding: 2.5rem; display: none; align-items: center; gap: 16px;
-    }
+    .empty-formats { font-size: 11px; color: var(--ink-4); margin-top: 10px; }
+    .proc-card { width: 100%; max-width: 600px; background: var(--surface); border: 1px solid var(--ink-5); border-radius: var(--radius); padding: 2rem; display: none; align-items: center; gap: 16px; }
     .proc-card.show { display: flex; }
-    .proc-ring { width: 36px; height: 36px; border: 3px solid var(--ink-5); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+    .proc-ring { width: 34px; height: 34px; border: 3px solid var(--ink-5); border-top-color: var(--amber); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .proc-text h3 { font-size: 14px; font-weight: 500; color: var(--ink); }
-    .proc-text p { font-size: 12.5px; color: var(--ink-3); margin-top: 2px; }
+    .proc-text h3 { font-size: 14px; font-weight: 500; }
+    .proc-text p { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
 
     /* Drop overlay */
-    .drop-overlay { display: none; position: fixed; inset: 0; background: rgba(250,249,246,0.94); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 10px; border: 3px dashed var(--amber); }
+    .drop-overlay { display: none; position: fixed; inset: 0; background: rgba(240,237,230,0.94); z-index: 300; align-items: center; justify-content: center; flex-direction: column; gap: 10px; border: 3px dashed var(--amber); }
     .drop-overlay.show { display: flex; }
     .drop-overlay svg { width: 44px; height: 44px; stroke: var(--amber); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
     .drop-overlay p { font-family: 'DM Serif Display', serif; font-size: 20px; color: var(--amber); }
 
     /* ── RIGHT SIDEBAR ── */
-    .right-sidebar {
-      width: var(--right-w); background: var(--surface);
-      display: flex; flex-direction: column;
-      position: sticky; top: var(--topbar);
-      height: calc(100vh - var(--topbar)); overflow: hidden;
-      transition: width 0.2s ease; flex-shrink: 0;
-    }
+    .right-sidebar { width: var(--right-w); background: var(--surface); border-left: 1px solid var(--ink-5); display: flex; flex-direction: column; position: sticky; top: var(--topbar); height: calc(100vh - var(--topbar)); overflow: hidden; transition: width 0.2s ease; flex-shrink: 0; }
     .right-sidebar.collapsed { width: 40px; }
-
-    .right-header {
-      display: flex; align-items: center; justify-content: space-between;
-      border-bottom: 1px solid var(--ink-5); flex-shrink: 0; min-height: 40px;
-    }
-    .right-sidebar.collapsed .tab-btns,
-    .right-sidebar.collapsed .right-body { display: none; }
-    .right-sidebar.collapsed .right-header { justify-content: center; padding: 8px; border: none; }
+    .right-header { display: flex; align-items: center; border-bottom: 1px solid var(--ink-5); flex-shrink: 0; min-height: 40px; }
+    .right-sidebar.collapsed .tab-btns, .right-sidebar.collapsed .right-body { display: none; }
+    .right-sidebar.collapsed .right-header { justify-content: center; border: none; }
     .right-sidebar.collapsed .right-collapse-btn svg { transform: rotate(180deg); }
-
-    .tab-btns { display: flex; flex: 1; }
-    .tab-btn {
-      flex: 1; padding: 10px 0; font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em;
-      text-transform: uppercase; border: none; background: none; cursor: pointer;
-      color: var(--ink-3); font-family: 'DM Sans', sans-serif; border-bottom: 2px solid transparent;
-      transition: all 0.12s;
-    }
+    .tab-btns { display: flex; flex: 1; overflow: hidden; }
+    .tab-btn { flex: 1; padding: 9px 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; border: none; background: none; cursor: pointer; color: var(--ink-3); font-family: 'DM Sans', sans-serif; border-bottom: 2px solid transparent; transition: all 0.12s; white-space: nowrap; }
     .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
     .tab-btn:hover:not(.active) { color: var(--ink-2); }
-
     .right-collapse-btn { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border: none; background: none; cursor: pointer; color: var(--ink-3); flex-shrink: 0; border-left: 1px solid var(--ink-5); }
     .right-collapse-btn:hover { background: var(--paper-warm); }
     .right-collapse-btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.2s; }
-
     .right-body { flex: 1; overflow-y: auto; }
     .tab-panel { display: none; padding: 12px; flex-direction: column; gap: 10px; }
     .tab-panel.active { display: flex; }
-    .panel-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 4px; }
+    .panel-label { font-size: 10px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 2px; }
+    .panel-divider { height: 1px; background: var(--ink-5); margin: 4px 0; }
 
-    /* Files tab */
-    .file-item {
-      display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-      background: var(--paper); border: 1px solid var(--ink-5); border-radius: var(--radius-sm);
-    }
-    .file-icon { width: 26px; height: 26px; background: var(--paper-warm); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .file-icon svg { width: 13px; height: 13px; stroke: var(--ink-3); fill: none; stroke-width: 2; stroke-linecap: round; }
+    /* File list */
+    .file-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; background: var(--paper); border: 1px solid var(--ink-5); border-radius: var(--radius-sm); }
+    .file-icon { width: 24px; height: 24px; background: var(--paper-warm); border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .file-icon svg { width: 12px; height: 12px; stroke: var(--ink-3); fill: none; stroke-width: 2; stroke-linecap: round; }
     .file-info { flex: 1; min-width: 0; }
-    .file-name { font-size: 12px; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .file-status { font-size: 11px; }
+    .file-name { font-size: 11.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-status { font-size: 10.5px; }
     .file-status.done { color: var(--green); }
     .file-status.error { color: var(--red); }
     .file-status.processing { color: var(--amber); }
 
-    /* Format tab */
-    .fmt-group { display: flex; flex-direction: column; gap: 6px; }
-    .fmt-row { display: flex; align-items: center; gap: 6px; }
-    .fmt-field { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-    .fmt-field label { font-size: 10.5px; color: var(--ink-3); letter-spacing: 0.04em; }
-    .fmt-select {
-      padding: 6px 8px; border: 1px solid var(--ink-5); border-radius: var(--radius-sm);
-      font-size: 12.5px; font-family: 'DM Sans', sans-serif;
-      background: var(--surface); color: var(--ink); cursor: pointer; outline: none; width: 100%;
-    }
-    .fmt-select:focus { border-color: var(--amber); }
-    .color-row { display: flex; gap: 6px; flex-wrap: wrap; }
-    .color-swatch {
-      width: 24px; height: 24px; border-radius: 50%; border: 2px solid transparent;
-      cursor: pointer; transition: transform 0.1s; flex-shrink: 0;
-    }
+    /* Format controls */
+    .fmt-field { display: flex; flex-direction: column; gap: 3px; }
+    .fmt-field label { font-size: 10.5px; color: var(--ink-3); }
+    .fmt-full-select { width: 100%; padding: 6px 8px; border: 1px solid var(--ink-5); border-radius: var(--radius-sm); font-size: 12px; font-family: 'DM Sans', sans-serif; background: var(--surface); color: var(--ink); outline: none; }
+    .fmt-full-select:focus { border-color: var(--amber); }
+    .fmt-row { display: flex; gap: 6px; }
+    .fmt-row .fmt-field { flex: 1; }
+    .color-row { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+    .color-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: transform 0.1s; flex-shrink: 0; }
     .color-swatch:hover { transform: scale(1.15); }
     .color-swatch.active { border-color: var(--ink-3); }
-    .custom-color-wrap { width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--ink-5); overflow: hidden; cursor: pointer; position: relative; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, red, yellow, green, blue); }
+    .custom-color-wrap { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink-5); overflow: hidden; cursor: pointer; position: relative; background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
     .custom-color-wrap input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-
-    .apply-fmt-btn {
-      width: 100%; padding: 8px; background: var(--ink); color: var(--paper);
-      border: none; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 500;
-      cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; margin-top: 4px;
-    }
-    .apply-fmt-btn:hover { background: var(--ink-2); }
+    .action-btn { width: 100%; padding: 7px; background: var(--paper-warm); color: var(--ink-2); border: 1px solid var(--ink-5); border-radius: var(--radius-sm); font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.12s; text-align: center; }
+    .action-btn:hover { background: var(--ink-5); color: var(--ink); }
+    .action-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .action-btn.primary:hover { background: var(--ink-2); }
 
     /* Uncertain hint */
-    .uncertain-hint {
-      display: none; padding: 8px 10px; background: var(--amber-light);
-      border: 1px solid var(--amber-mid); border-radius: var(--radius-sm);
-      font-size: 11.5px; color: #7a5200; gap: 6px; align-items: center;
-    }
+    .uncertain-hint { display: none; padding: 8px 10px; background: var(--amber-light); border: 1px solid var(--amber-mid); border-radius: var(--radius-sm); font-size: 11.5px; color: #7a5200; gap: 6px; align-items: center; }
     .uncertain-hint.show { display: flex; }
-
-    /* Alerts */
-    .alert { padding: 9px 11px; border-radius: var(--radius-sm); font-size: 12.5px; display: none; line-height: 1.5; }
+    .alert { padding: 8px 10px; border-radius: var(--radius-sm); font-size: 12px; display: none; line-height: 1.5; }
     .alert.show { display: block; }
     .alert-error { background: var(--red-light); color: var(--red); border: 1px solid #f5c6c2; }
     .alert-success { background: var(--green-light); color: var(--green); border: 1px solid #b7dfc9; }
 
-    /* Bottom statusbar */
-    .status-bar {
-      position: fixed; bottom: 0; left: var(--left-w); right: var(--right-w);
-      height: 28px; background: var(--surface); border-top: 1px solid var(--ink-5);
-      display: flex; align-items: center; padding: 0 2rem; gap: 14px;
-      font-size: 11.5px; color: var(--ink-3); z-index: 50; transition: left 0.2s, right 0.2s;
-    }
-    .status-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-5); flex-shrink: 0; }
+    /* Status bar */
+    .status-bar { position: fixed; bottom: 0; left: var(--left-w); right: var(--right-w); height: 26px; background: var(--surface); border-top: 1px solid var(--ink-5); display: flex; align-items: center; padding: 0 1.5rem; gap: 12px; font-size: 11px; color: var(--ink-3); z-index: 50; transition: left 0.2s, right 0.2s; }
+    .status-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--ink-5); flex-shrink: 0; }
 
-    /* ── MOBILE ── */
-    @media (max-width: 900px) {
-      :root { --left-w: 160px; --right-w: 220px; }
-    }
-    @media (max-width: 700px) {
-      .left-sidebar { display: none; }
-      .right-sidebar { display: none; }
-      .status-bar { left: 0; right: 0; }
-      .fmt-toolbar { padding: 5px 0.75rem; }
-      .pages-scroll { padding: 1rem 0.75rem 5rem; }
-      .page-body { padding: 1.25rem 1rem; }
-    }
+    /* Mobile */
+    @media (max-width: 900px) { :root { --left-w: 160px; --right-w: 220px; --page-w: 100%; } }
+    @media (max-width: 700px) { .left-sidebar, .right-sidebar { display: none; } .status-bar { left: 0; right: 0; } .pages-scroll { padding: 1rem 0.5rem 4rem; } }
 
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(8px) scale(var(--zoom)); } to { opacity: 1; transform: translateY(0) scale(var(--zoom)); } }
     .page-card { animation: fadeUp 0.25s ease both; }
   </style>
 </head>
 <body>
 <input type="file" id="file-input" style="display:none" accept="image/*,.pdf" multiple onchange="handleFiles(event)" />
 
-<!-- Drop overlay -->
 <div class="drop-overlay" id="drop-overlay">
   <svg viewBox="0 0 24 24"><polyline points="16,16 12,12 8,16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39,18.39A5,5,0,0,0,18,9h-1.26A8,8,0,1,0,3,16.3"/></svg>
   <p>Drop to extract</p>
@@ -400,51 +282,48 @@
     <span class="brand-name">Digitize</span>
     <span class="brand-beta">Beta</span>
   </div>
-
   <button class="tb-btn ghost" onclick="document.getElementById('file-input').click()">
-    <svg viewBox="0 0 24 24"><polyline points="16,16 12,12 8,16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39,18.39A5,5,0,0,0,18,9h-1.26A8,8,0,1,0,3,16.3"/></svg>
-    Upload
+    <svg viewBox="0 0 24 24"><polyline points="16,16 12,12 8,16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39,18.39A5,5,0,0,0,18,9h-1.26A8,8,0,1,0,3,16.3"/></svg>Upload
   </button>
+  <div class="tb-sep"></div>
+  <div class="zoom-controls">
+    <button class="tb-btn ghost icon-only" onclick="adjustZoom(-0.1)" title="Zoom out"><svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <span class="zoom-label" id="zoom-label">100%</span>
+    <button class="tb-btn ghost icon-only" onclick="adjustZoom(0.1)" title="Zoom in"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+    <button class="tb-btn ghost" style="font-size:11px;" onclick="resetZoom()">Reset</button>
+  </div>
   <div class="tb-sep"></div>
   <button class="tb-btn ghost" id="copy-btn" onclick="copyAll()" disabled>
-    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-    Copy all
+    <svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy
   </button>
   <button class="tb-btn ghost" id="export-txt-btn" onclick="exportTxt()" disabled>
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-    .txt
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>.txt
   </button>
   <button class="tb-btn ghost" id="export-pdf-btn" onclick="exportPdf()" disabled>
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-    PDF
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>PDF
   </button>
   <button class="tb-btn accent" id="export-word-btn" onclick="exportDocx()" disabled>
-    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    Export Word
+    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Export Word
   </button>
   <div class="tb-sep"></div>
-  <button class="tb-btn ghost save-btn" id="save-btn" onclick="saveToStorage()" disabled>
-    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>
-    Save
+  <button class="tb-btn ghost" id="save-btn" onclick="saveToStorage()" disabled>
+    <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>Save
   </button>
   <button class="tb-btn ghost icon-only" id="clear-btn" onclick="clearAll()" disabled title="Clear all">
     <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
   </button>
 </header>
 
-<!-- Layout -->
 <div class="layout">
 
-  <!-- Left sidebar: Page thumbnails -->
+  <!-- Left sidebar -->
   <aside class="left-sidebar" id="left-sidebar">
-    <div class="left-header">
-      <span class="left-header-label">Pages</span>
-      <button class="collapse-btn" onclick="toggleLeft()" title="Collapse">
-        <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
-      </button>
+    <div class="sidebar-header">
+      <span class="sidebar-header-label">Pages</span>
+      <button class="collapse-btn" onclick="toggleLeft()"><svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg></button>
     </div>
     <div class="page-list" id="page-list">
-      <p class="left-empty">Pages will appear here after upload.</p>
+      <p class="left-empty">Pages appear here after upload.</p>
     </div>
   </aside>
 
@@ -457,49 +336,50 @@
       <input class="fnr-input" id="fnr-find" placeholder="Search..." oninput="fnrSearch()" onkeydown="fnrKey(event)" />
       <span class="fnr-label">Replace</span>
       <input class="fnr-input" id="fnr-replace" placeholder="Replace with..." onkeydown="fnrKey(event)" />
-      <button class="tb-btn" onclick="fnrReplace()" style="padding:5px 10px;font-size:12px;">Replace</button>
-      <button class="tb-btn" onclick="fnrReplaceAll()" style="padding:5px 10px;font-size:12px;">All</button>
+      <button class="tb-btn" onclick="fnrReplace()" style="padding:4px 9px;font-size:12px;">Replace</button>
+      <button class="tb-btn" onclick="fnrReplaceAll()" style="padding:4px 9px;font-size:12px;">All</button>
       <span class="fnr-count" id="fnr-count"></span>
-      <button class="tb-btn ghost" onclick="closeFnr()" style="margin-left:auto;padding:5px 8px;">✕</button>
+      <button class="tb-btn ghost" onclick="closeFnr()" style="margin-left:auto;padding:4px 7px;">✕</button>
     </div>
 
-    <!-- Formatting toolbar -->
+    <!-- Toolbar -->
     <div class="fmt-toolbar">
       <button class="fmt-btn" title="Bold" onclick="fmt('bold')"><svg viewBox="0 0 24 24"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg></button>
       <button class="fmt-btn" title="Italic" onclick="fmt('italic')"><svg viewBox="0 0 24 24"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg></button>
       <button class="fmt-btn" title="Underline" onclick="fmt('underline')"><svg viewBox="0 0 24 24"><path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg></button>
+      <div class="fmt-sep"></div>
+      <!-- Alignment -->
+      <div class="align-btns">
+        <button class="fmt-btn" title="Align left" onclick="fmt('justifyLeft')"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="15" y2="12"/><line x1="3" y1="18" x2="18" y2="18"/></svg></button>
+        <button class="fmt-btn" title="Align center" onclick="fmt('justifyCenter')"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
+        <button class="fmt-btn" title="Align right" onclick="fmt('justifyRight')"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="6" y1="18" x2="21" y2="18"/></svg></button>
+        <button class="fmt-btn" title="Justify" onclick="fmt('justifyFull')"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      </div>
       <div class="fmt-sep"></div>
       <button class="fmt-btn" title="Bullet list" onclick="fmt('insertUnorderedList')"><svg viewBox="0 0 24 24"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="4" cy="18" r="1.5" fill="currentColor" stroke="none"/></svg></button>
       <button class="fmt-btn" title="Numbered list" onclick="fmt('insertOrderedList')"><svg viewBox="0 0 24 24"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg></button>
       <button class="fmt-btn" title="Indent" onclick="fmt('indent')"><svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="7,12 11,9 11,15"/></svg></button>
       <button class="fmt-btn" title="Outdent" onclick="fmt('outdent')"><svg viewBox="0 0 24 24"><line x1="3" y1="8" x2="21" y2="8"/><line x1="3" y1="16" x2="21" y2="16"/><polyline points="11,12 7,9 7,15"/></svg></button>
       <div class="fmt-sep"></div>
-      <button class="fmt-btn" title="Undo" onclick="document.execCommand('undo')"><svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg></button>
-      <button class="fmt-btn" title="Redo" onclick="document.execCommand('redo')"><svg viewBox="0 0 24 24"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-.49-3.5"/></svg></button>
+      <button class="fmt-btn" onclick="document.execCommand('undo')"><svg viewBox="0 0 24 24"><polyline points="1,4 1,10 7,10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/></svg></button>
+      <button class="fmt-btn" onclick="document.execCommand('redo')"><svg viewBox="0 0 24 24"><polyline points="23,4 23,10 17,10"/><path d="M20.49 15a9 9 0 1 1-.49-3.5"/></svg></button>
       <div class="fmt-sep"></div>
-      <button class="fmt-btn" title="Find & Replace" id="fnr-toggle" onclick="toggleFnr()"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
-      <button class="fmt-btn" title="Insert table" onclick="insertTable()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/></svg></button>
+      <button class="fmt-btn" id="fnr-toggle" onclick="toggleFnr()"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <button class="fmt-btn" onclick="insertTable()"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="12" y1="3" x2="12" y2="21"/></svg></button>
+      <button class="fmt-btn" onclick="insertPageBreak()" title="Insert page break"><svg viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12" stroke-dasharray="4"/><polyline points="8,8 3,12 8,16"/><polyline points="16,8 21,12 16,16"/></svg></button>
       <div class="fmt-sep"></div>
-      <!-- Inline font controls -->
-      <select class="font-select" id="font-select" onchange="applyFont()" title="Font family">
-        <option value="'DM Sans', sans-serif">DM Sans</option>
-        <option value="'Georgia', serif">Georgia</option>
-        <option value="'DM Serif Display', serif">DM Serif</option>
-        <option value="'Courier New', monospace">Courier</option>
-        <option value="'Arial', sans-serif">Arial</option>
-        <option value="'Times New Roman', serif">Times New Roman</option>
+      <select class="fmt-select" id="font-select" onchange="applyFont()">
+        <option value="'DM Sans',sans-serif">DM Sans</option>
+        <option value="Georgia,serif">Georgia</option>
+        <option value="'DM Serif Display',serif">DM Serif</option>
+        <option value="'Courier New',monospace">Courier</option>
+        <option value="Arial,sans-serif">Arial</option>
+        <option value="'Times New Roman',serif">Times NR</option>
       </select>
-      <select class="size-select" id="size-select" onchange="applySize()" title="Font size">
-        <option value="11">11</option>
-        <option value="12">12</option>
-        <option value="13">13</option>
-        <option value="14" selected>14</option>
-        <option value="16">16</option>
-        <option value="18">18</option>
-        <option value="20">20</option>
-        <option value="24">24</option>
-        <option value="28">28</option>
-        <option value="32">32</option>
+      <select class="fmt-select" id="size-select" onchange="applyFontSize()">
+        <option>10</option><option>11</option><option>12</option><option>13</option>
+        <option selected>14</option><option>16</option><option>18</option><option>20</option>
+        <option>24</option><option>28</option><option>32</option>
       </select>
       <button class="color-btn" title="Text color">
         <div class="color-preview" id="color-preview"></div>
@@ -507,10 +387,8 @@
       </button>
     </div>
 
-    <!-- Pages scroll -->
+    <!-- Pages scroll area -->
     <div class="pages-scroll" id="pages-scroll">
-
-      <!-- Empty state -->
       <div class="empty-state" id="empty-state">
         <div class="empty-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg></div>
         <h2 class="empty-title">No document yet</h2>
@@ -521,37 +399,31 @@
         </button>
         <p class="empty-formats">JPG · PNG · PDF — scanned or digital</p>
       </div>
-
-      <!-- Processing card -->
       <div class="proc-card" id="proc-card">
         <div class="proc-ring"></div>
-        <div class="proc-text">
-          <h3>Extracting document...</h3>
-          <p id="proc-sub">Reading text and structure</p>
-        </div>
+        <div class="proc-text"><h3>Extracting document...</h3><p id="proc-sub">Reading text and structure</p></div>
       </div>
-
     </div>
 
-    <!-- Status bar -->
     <div class="status-bar" id="status-bar">
       <span id="sb-words">0 words</span>
       <span class="status-dot"></span>
       <span id="sb-pages">0 pages</span>
       <span class="status-dot"></span>
-      <span id="sb-file">No document</span>
-      <span style="margin-left:auto;font-size:11px;color:var(--ink-4)" id="sb-saved"></span>
+      <span id="sb-zoom">100%</span>
+      <span style="margin-left:auto;font-size:10.5px;color:var(--ink-4);" id="sb-saved"></span>
     </div>
   </main>
 
-  <!-- Right sidebar: Files + Format tabs -->
+  <!-- Right sidebar -->
   <aside class="right-sidebar" id="right-sidebar">
     <div class="right-header">
       <div class="tab-btns">
         <button class="tab-btn active" onclick="switchTab('files')" id="tab-files">Files</button>
         <button class="tab-btn" onclick="switchTab('format')" id="tab-format">Format</button>
+        <button class="tab-btn" onclick="switchTab('layout')" id="tab-layout">Layout</button>
       </div>
-      <button class="right-collapse-btn" onclick="toggleRight()" title="Collapse sidebar">
+      <button class="right-collapse-btn" onclick="toggleRight()">
         <svg viewBox="0 0 24 24"><polyline points="9,18 15,12 9,6"/></svg>
       </button>
     </div>
@@ -563,87 +435,122 @@
         <div class="alert alert-error" id="err"></div>
         <div class="alert alert-success" id="suc"></div>
         <div class="uncertain-hint" id="uncertain-hint">
-          <span style="font-size:13px;">⚠</span>
+          <span>⚠</span>
           <span style="flex:1;">Highlighted words were unclear — click to fix</span>
-          <button onclick="clearUncertain()" style="font-size:11px;background:none;border:none;cursor:pointer;color:#7a5200;font-weight:500;font-family:inherit;white-space:nowrap;">Clear</button>
+          <button onclick="clearUncertain()" style="font-size:11px;background:none;border:none;cursor:pointer;color:#7a5200;font-weight:500;font-family:inherit;">Clear</button>
         </div>
         <p class="panel-label">Uploaded files</p>
-        <div id="file-list"><p style="font-size:12px;color:var(--ink-4);">No files yet.</p></div>
-        <button class="tb-btn ghost" style="width:100%;justify-content:center;margin-top:4px;" onclick="document.getElementById('file-input').click()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add more files
-        </button>
+        <div id="file-list"><p style="font-size:11.5px;color:var(--ink-4);">No files yet.</p></div>
+        <button class="action-btn" onclick="document.getElementById('file-input').click()">+ Add more files</button>
+        <div class="panel-divider"></div>
+        <p class="panel-label">Save &amp; restore</p>
+        <button class="action-btn primary" onclick="saveToStorage()">Save document</button>
+        <button class="action-btn" onclick="loadFromStorage()" style="margin-top:4px;">Restore last save</button>
       </div>
 
       <!-- Format tab -->
       <div class="tab-panel" id="panel-format">
-        <p class="panel-label">Typography</p>
-        <div class="fmt-group">
+        <p class="panel-label">Font</p>
+        <div class="fmt-field">
+          <label>Family</label>
+          <select class="fmt-full-select" id="panel-font" onchange="applyFontPanel()">
+            <option value="'DM Sans',sans-serif">DM Sans</option>
+            <option value="Georgia,serif">Georgia</option>
+            <option value="'DM Serif Display',serif">DM Serif</option>
+            <option value="'Courier New',monospace">Courier New</option>
+            <option value="Arial,sans-serif">Arial</option>
+            <option value="'Times New Roman',serif">Times New Roman</option>
+          </select>
+        </div>
+        <div class="fmt-row">
           <div class="fmt-field">
-            <label>Font family</label>
-            <select class="fmt-select" id="panel-font" onchange="applyFontPanel()">
-              <option value="'DM Sans', sans-serif">DM Sans</option>
-              <option value="'Georgia', serif">Georgia</option>
-              <option value="'DM Serif Display', serif">DM Serif</option>
-              <option value="'Courier New', monospace">Courier New</option>
-              <option value="'Arial', sans-serif">Arial</option>
-              <option value="'Times New Roman', serif">Times New Roman</option>
+            <label>Size</label>
+            <select class="fmt-full-select" id="panel-size" onchange="applySizePanel()">
+              <option>10</option><option>11</option><option>12</option><option>13</option>
+              <option selected>14</option><option>16</option><option>18</option><option>20</option>
+              <option>24</option><option>28</option><option>32</option>
             </select>
           </div>
-          <div class="fmt-row">
-            <div class="fmt-field">
-              <label>Size (pt)</label>
-              <select class="fmt-select" id="panel-size" onchange="applySizePanel()">
-                <option value="11">11</option><option value="12">12</option>
-                <option value="13">13</option><option value="14" selected>14</option>
-                <option value="16">16</option><option value="18">18</option>
-                <option value="20">20</option><option value="24">24</option>
-                <option value="28">28</option><option value="32">32</option>
-              </select>
-            </div>
-            <div class="fmt-field">
-              <label>Line height</label>
-              <select class="fmt-select" id="panel-lh" onchange="applyLineHeight()">
-                <option value="1.4">Tight</option>
-                <option value="1.6">Normal</option>
-                <option value="1.9" selected>Relaxed</option>
-                <option value="2.2">Loose</option>
-              </select>
-            </div>
+          <div class="fmt-field">
+            <label>Line height</label>
+            <select class="fmt-full-select" id="panel-lh" onchange="applyLineHeight()">
+              <option value="1.4">Tight</option>
+              <option value="1.6">Normal</option>
+              <option value="1.85" selected>Relaxed</option>
+              <option value="2.2">Loose</option>
+            </select>
           </div>
         </div>
-
-        <p class="panel-label" style="margin-top:10px;">Text color</p>
+        <div class="panel-divider"></div>
+        <p class="panel-label">Text color</p>
         <div class="color-row">
-          <div class="color-swatch active" style="background:#1c1a16;" onclick="setColor('#1c1a16', this)"></div>
-          <div class="color-swatch" style="background:#2d6a4f;" onclick="setColor('#2d6a4f', this)"></div>
-          <div class="color-swatch" style="background:#d47c0a;" onclick="setColor('#d47c0a', this)"></div>
-          <div class="color-swatch" style="background:#c0392b;" onclick="setColor('#c0392b', this)"></div>
-          <div class="color-swatch" style="background:#1a3a6b;" onclick="setColor('#1a3a6b', this)"></div>
-          <div class="color-swatch" style="background:#6b3a7d;" onclick="setColor('#6b3a7d', this)"></div>
-          <div class="color-swatch" style="background:#8a8780;" onclick="setColor('#8a8780', this)"></div>
-          <div class="custom-color-wrap" title="Custom color"><input type="color" id="panel-color" oninput="setColor(this.value, null)" /></div>
+          <div class="color-swatch active" style="background:#1c1a16" onclick="setColor('#1c1a16',this)"></div>
+          <div class="color-swatch" style="background:#2d6a4f" onclick="setColor('#2d6a4f',this)"></div>
+          <div class="color-swatch" style="background:#d47c0a" onclick="setColor('#d47c0a',this)"></div>
+          <div class="color-swatch" style="background:#c0392b" onclick="setColor('#c0392b',this)"></div>
+          <div class="color-swatch" style="background:#1a3a6b" onclick="setColor('#1a3a6b',this)"></div>
+          <div class="color-swatch" style="background:#6b3a7d" onclick="setColor('#6b3a7d',this)"></div>
+          <div class="color-swatch" style="background:#8a8780" onclick="setColor('#8a8780',this)"></div>
+          <div class="custom-color-wrap"><input type="color" id="panel-color" value="#1c1a16" oninput="setColor(this.value,null)" /></div>
         </div>
+        <div class="panel-divider"></div>
+        <p class="panel-label">Alignment</p>
+        <div style="display:flex;gap:4px;">
+          <button class="action-btn" style="flex:1;padding:6px 4px;" onclick="fmt('justifyLeft')">Left</button>
+          <button class="action-btn" style="flex:1;padding:6px 4px;" onclick="fmt('justifyCenter')">Center</button>
+          <button class="action-btn" style="flex:1;padding:6px 4px;" onclick="fmt('justifyRight')">Right</button>
+          <button class="action-btn" style="flex:1;padding:6px 4px;" onclick="fmt('justifyFull')">Full</button>
+        </div>
+      </div>
 
-        <p class="panel-label" style="margin-top:10px;">Page style</p>
-        <div class="fmt-group">
+      <!-- Layout tab -->
+      <div class="tab-panel" id="panel-layout">
+        <p class="panel-label">Page size</p>
+        <div class="fmt-field">
+          <label>Preset</label>
+          <select class="fmt-full-select" id="layout-preset" onchange="applyPagePreset()">
+            <option value="a4">A4 (210 × 297mm)</option>
+            <option value="letter">US Letter (8.5 × 11in)</option>
+            <option value="a5">A5 (148 × 210mm)</option>
+            <option value="legal">Legal (8.5 × 14in)</option>
+          </select>
+        </div>
+        <div class="fmt-row">
           <div class="fmt-field">
-            <label>Page padding</label>
-            <select class="fmt-select" id="panel-padding" onchange="applyPadding()">
-              <option value="1rem 1.5rem">Compact</option>
-              <option value="2rem 2.5rem" selected>Normal</option>
-              <option value="3rem 4rem">Spacious</option>
-            </select>
+            <label>Width (px)</label>
+            <input type="number" class="fmt-full-select" id="layout-w" value="794" min="400" max="1200" onchange="applyCustomSize()" />
+          </div>
+          <div class="fmt-field">
+            <label>Height (px)</label>
+            <input type="number" class="fmt-full-select" id="layout-h" value="1123" min="400" max="2000" onchange="applyCustomSize()" />
           </div>
         </div>
-
-        <p class="panel-label" style="margin-top:10px;">Save &amp; restore</p>
-        <button class="apply-fmt-btn" onclick="saveToStorage()">
-          Save current document
-        </button>
-        <button class="apply-fmt-btn" style="background:var(--paper-warm);color:var(--ink-2);border:1px solid var(--ink-5);margin-top:4px;" onclick="loadFromStorage()">
-          Restore last save
-        </button>
+        <div class="panel-divider"></div>
+        <p class="panel-label">Orientation</p>
+        <div style="display:flex;gap:6px;">
+          <button class="action-btn" id="orient-portrait" style="flex:1;" onclick="setOrientation('portrait')">Portrait</button>
+          <button class="action-btn" id="orient-landscape" style="flex:1;" onclick="setOrientation('landscape')">Landscape</button>
+        </div>
+        <div class="panel-divider"></div>
+        <p class="panel-label">Margins (px)</p>
+        <div class="fmt-row">
+          <div class="fmt-field">
+            <label>Top / Bottom</label>
+            <input type="number" class="fmt-full-select" id="margin-tb" value="72" min="0" max="200" onchange="applyMargins()" />
+          </div>
+          <div class="fmt-field">
+            <label>Left / Right</label>
+            <input type="number" class="fmt-full-select" id="margin-lr" value="72" min="0" max="200" onchange="applyMargins()" />
+          </div>
+        </div>
+        <div class="panel-divider"></div>
+        <p class="panel-label">Page padding style</p>
+        <select class="fmt-full-select" id="padding-style" onchange="applyPaddingStyle()">
+          <option value="compact">Compact</option>
+          <option value="normal" selected>Normal</option>
+          <option value="spacious">Spacious</option>
+        </select>
+        <button class="action-btn primary" style="margin-top:8px;" onclick="applyLayoutToAll()">Apply to all pages</button>
       </div>
 
     </div>
@@ -653,10 +560,10 @@
 
 <script>
 /* ── State ── */
-let pages = []; // [{id, filename, pageNum, html}]
 let pageCount = 0;
-let totalWords = 0;
-let activeColor = '#1c1a16';
+let currentZoom = 1;
+let pageW = 794, pageH = 1123, pageMarginTB = 72, pageMarginLR = 72;
+let orientation = 'portrait';
 
 /* ── Drag & Drop ── */
 document.addEventListener('dragover', e => { e.preventDefault(); document.getElementById('drop-overlay').classList.add('show'); });
@@ -665,16 +572,15 @@ document.addEventListener('drop', e => { e.preventDefault(); document.getElement
 function handleFiles(e) { processFiles([...e.target.files]); }
 function processFiles(files) {
   const valid = files.filter(f => f.type.startsWith('image/') || f.type === 'application/pdf');
-  if (!valid.length) { showErr('Please upload an image (JPG/PNG) or PDF.'); return; }
+  if (!valid.length) { showErr('Please upload an image or PDF file.'); return; }
   valid.forEach(processFile);
 }
 
-/* ── Process a single file ── */
+/* ── Process file ── */
 async function processFile(file) {
   addFileToList(file.name, 'processing');
   document.getElementById('empty-state').style.display = 'none';
   document.getElementById('proc-card').classList.add('show');
-  document.getElementById('proc-sub').textContent = `Reading ${file.name}...`;
 
   try {
     if (file.type === 'application/pdf') {
@@ -683,15 +589,16 @@ async function processFile(file) {
       for (let i = 0; i < images.length; i++) {
         document.getElementById('proc-sub').textContent = `Extracting page ${i+1} of ${images.length}...`;
         const text = await extractImage(images[i], 'image/jpeg');
-        if (text !== null) addPage(text, file.name, i + 1);
+        if (text !== null) addPage(text, file.name, i+1, images[i]);
       }
     } else {
       const reader = new FileReader();
       reader.onload = async e => {
         const b64 = e.target.result.split(',')[1];
         const text = await extractImage(b64, file.type || 'image/jpeg');
-        if (text !== null) addPage(text, file.name, 1);
+        if (text !== null) addPage(text, file.name, 1, b64, file.type);
         updateFileStatus(file.name, 'done');
+        document.getElementById('proc-card').classList.remove('show');
       };
       reader.readAsDataURL(file);
       return;
@@ -700,93 +607,140 @@ async function processFile(file) {
   } catch(err) {
     updateFileStatus(file.name, 'error');
     showErr('Failed: ' + err.message);
-  } finally {
-    document.getElementById('proc-card').classList.remove('show');
   }
+  document.getElementById('proc-card').classList.remove('show');
 }
 
-/* ── Add a page to the editor ── */
-function addPage(rawText, filename, pageNum) {
+/* ── Add page ── */
+function addPage(rawText, filename, pageNum, thumbB64, thumbMime) {
   pageCount++;
-  const id = 'page-' + Date.now() + '-' + pageCount;
+  const id = 'pg-' + Date.now() + '-' + pageCount;
   const html = renderText(rawText);
-  pages.push({ id, filename, pageNum, html });
 
-  // Create page card
+  // Page card
   const card = document.createElement('div');
   card.className = 'page-card';
   card.id = id;
+  card.style.width = pageW + 'px';
+  card.style.minHeight = pageH + 'px';
   card.innerHTML = `
     <div class="page-card-header">
       <span class="page-card-label">Page ${pageCount}</span>
       <span class="page-card-filename">${filename}</span>
       <div class="page-card-actions">
-        <button class="page-action-btn" onclick="deletePage('${id}')" title="Remove page">
-          <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
-        </button>
+        <button class="page-action-btn" onclick="movePage('${id}',-1)" title="Move up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg></button>
+        <button class="page-action-btn" onclick="movePage('${id}',1)" title="Move down"><svg viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg></button>
+        <button class="page-action-btn" onclick="deletePage('${id}')" title="Delete page"><svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg></button>
       </div>
     </div>
-    <div class="page-body" id="body-${id}" contenteditable="true" spellcheck="false" oninput="onPageInput()">${html}</div>`;
+    <div class="page-body" id="body-${id}" contenteditable="true" spellcheck="false"
+         style="padding:${pageMarginTB}px ${pageMarginLR}px;"
+         oninput="updateStatus()">${html}</div>`;
+
   document.getElementById('pages-scroll').appendChild(card);
 
-  // Add thumbnail to left sidebar
-  addThumbnail(id, pageCount, filename, rawText);
+  // Thumbnail
+  addThumbnail(id, pageCount, filename, thumbB64, thumbMime);
 
-  // Check uncertain
-  if (card.querySelectorAll('mark.uncertain').length > 0) {
+  if (card.querySelectorAll('mark.uncertain').length > 0)
     document.getElementById('uncertain-hint').classList.add('show');
-  }
 
   enableActions(true);
   updateStatus();
 }
 
-/* ── Left sidebar thumbnails ── */
-function addThumbnail(pageId, num, filename, rawText) {
+/* ── Left sidebar thumbnail ── */
+function addThumbnail(pageId, num, filename, b64, mime) {
   const list = document.getElementById('page-list');
-  // Remove empty placeholder
   const empty = list.querySelector('.left-empty');
   if (empty) empty.remove();
 
-  const preview = rawText.trim().split('\n')[0].substring(0, 80);
   const div = document.createElement('div');
   div.className = 'page-thumb';
   div.id = 'thumb-' + pageId;
+
+  let previewHtml = '';
+  if (b64) {
+    const src = b64.startsWith('data:') ? b64 : `data:${mime || 'image/jpeg'};base64,${b64}`;
+    previewHtml = `<img class="thumb-preview" src="${src}" alt="Page ${num}" loading="lazy" />`;
+  } else {
+    previewHtml = `<div class="thumb-placeholder"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>`;
+  }
+
   div.innerHTML = `
-    <div class="page-thumb-num">Page ${num}</div>
-    <div class="page-thumb-preview">${preview || '—'}</div>
-    <div class="page-thumb-name">${filename}</div>`;
-  div.onclick = () => scrollToPage(pageId);
+    ${previewHtml}
+    <div class="thumb-info">
+      <div class="thumb-num">Page ${num}</div>
+      <div class="thumb-name">${filename}</div>
+    </div>
+    <div class="thumb-actions">
+      <button class="thumb-action" onclick="movePage('${pageId}',-1)" title="Move up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg></button>
+      <button class="thumb-action" onclick="movePage('${pageId}',1)" title="Move down"><svg viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg></button>
+      <button class="thumb-action" onclick="scrollToPage('${pageId}')" title="Go to page" style="margin-left:auto;"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>`;
+
+  div.addEventListener('click', (e) => { if (!e.target.closest('.thumb-action')) scrollToPage(pageId); });
   list.appendChild(div);
 }
 
-function scrollToPage(pageId) {
-  const el = document.getElementById(pageId);
-  if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+/* ── Move page up/down ── */
+function movePage(id, dir) {
+  const scroll = document.getElementById('pages-scroll');
+  const card = document.getElementById(id);
+  const thumb = document.getElementById('thumb-' + id);
+  const list = document.getElementById('page-list');
+  if (!card) return;
+
+  const cards = [...scroll.querySelectorAll('.page-card')];
+  const idx = cards.indexOf(card);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= cards.length) return;
+
+  if (dir === -1) {
+    scroll.insertBefore(card, cards[newIdx]);
+    list.insertBefore(thumb, document.getElementById('thumb-' + cards[newIdx].id));
+  } else {
+    scroll.insertBefore(card, cards[newIdx].nextSibling);
+    list.insertBefore(thumb, document.getElementById('thumb-' + cards[newIdx].id).nextSibling);
+  }
+  renumberPages();
+}
+
+function renumberPages() {
+  let n = 1;
+  document.querySelectorAll('.page-card').forEach(card => {
+    card.querySelector('.page-card-label').textContent = `Page ${n}`;
+    const thumb = document.getElementById('thumb-' + card.id);
+    if (thumb) thumb.querySelector('.thumb-num').textContent = `Page ${n}`;
+    n++;
+  });
+}
+
+/* ── Scroll to page ── */
+function scrollToPage(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.querySelectorAll('.page-thumb').forEach(t => t.classList.remove('active'));
-  const thumb = document.getElementById('thumb-' + pageId);
+  const thumb = document.getElementById('thumb-' + id);
   if (thumb) thumb.classList.add('active');
 }
 
 /* ── Delete page ── */
 function deletePage(id) {
   if (!confirm('Remove this page?')) return;
-  const card = document.getElementById(id);
-  const thumb = document.getElementById('thumb-' + id);
-  if (card) card.remove();
-  if (thumb) thumb.remove();
-  pages = pages.filter(p => p.id !== id);
-  if (pages.length === 0) {
+  document.getElementById(id)?.remove();
+  document.getElementById('thumb-' + id)?.remove();
+  renumberPages();
+  if (!document.querySelector('.page-card')) {
     document.getElementById('empty-state').style.display = 'flex';
     enableActions(false);
-    if (!document.querySelector('.left-empty')) {
-      document.getElementById('page-list').innerHTML = '<p class="left-empty">Pages will appear here after upload.</p>';
-    }
+    if (!document.querySelector('.left-empty'))
+      document.getElementById('page-list').innerHTML = '<p class="left-empty">Pages appear here after upload.</p>';
   }
   updateStatus();
 }
 
-/* ── Render text → HTML ── */
+/* ── Render text ── */
 function renderText(raw) {
   const blocks = raw.split(/\n{2,}/);
   let html = '';
@@ -800,30 +754,23 @@ function renderText(raw) {
       let t = '<div class="tbl-wrap"><table><thead>';
       let head = true;
       for (const tl of dataLines) {
-        const cells = tl.split('|').map(c => c.trim()).filter((_, i, a) => i > 0 && i < a.length - 1);
+        const cells = tl.split('|').map(c => c.trim()).filter((_,i,a) => i > 0 && i < a.length - 1);
         if (!cells.length) continue;
-        if (head) {
-          t += '<tr>' + cells.map(c => `<th contenteditable="true">${esc(c)}</th>`).join('') + '</tr></thead><tbody>';
-          head = false;
-        } else {
-          t += '<tr>' + cells.map(c => `<td contenteditable="true">${esc(c)}</td>`).join('') + '</tr>';
-        }
+        if (head) { t += '<tr>' + cells.map(c => `<th contenteditable="true">${esc(c)}</th>`).join('') + '</tr></thead><tbody>'; head = false; }
+        else t += '<tr>' + cells.map(c => `<td contenteditable="true">${esc(c)}</td>`).join('') + '</tr>';
       }
-      t += '</tbody></table></div>';
-      html += t;
+      t += '</tbody></table></div>'; html += t;
     } else {
-      const escaped = esc(trimmed).replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Unclear — click to fix">$1</mark>');
+      const escaped = esc(trimmed).replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Unclear">$1</mark>');
       const isH = trimmed === trimmed.toUpperCase() && trimmed.length > 2 && trimmed.length < 80 && /[A-Z]/.test(trimmed) && !/[.!?]$/.test(trimmed);
-      const withBr = escaped.replace(/\n/g, '<br>');
-      html += isH ? `<h2>${withBr}</h2>` : `<p>${withBr}</p>`;
+      html += isH ? `<h2>${escaped.replace(/\n/g,'<br>')}</h2>` : `<p>${escaped.replace(/\n/g,'<br>')}</p>`;
     }
   }
   return html || '<p><br></p>';
 }
-
 function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
-/* ── PDF → images ── */
+/* ── PDF to images ── */
 async function pdfToImages(file) {
   const lib = window['pdfjs-dist/build/pdf'];
   lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -841,38 +788,40 @@ async function pdfToImages(file) {
   return out;
 }
 
-/* ── Extract via API ── */
+/* ── Extract ── */
 async function extractImage(b64, mime) {
-  const res = await fetch('/api/extract', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ imageBase64: b64, mimeType: mime })
-  });
+  const res = await fetch('/api/extract', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageBase64: b64, mimeType: mime }) });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error || `Error ${res.status}`); }
-  const data = await res.json();
-  return data.text || '';
+  return (await res.json()).text || '';
 }
 
-/* ── File list in right panel ── */
+/* ── File list ── */
 function addFileToList(name, status) {
   const list = document.getElementById('file-list');
-  const empty = list.querySelector('p');
-  if (empty) empty.remove();
+  list.querySelector('p')?.remove();
+  const id = 'fi-' + name.replace(/\W/g,'_');
+  if (document.getElementById(id)) { updateFileStatus(name, status); return; }
   const div = document.createElement('div');
-  div.className = 'file-item'; div.id = 'fi-' + name.replace(/\W/g,'_');
-  div.innerHTML = `
-    <div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div>
-    <div class="file-info"><div class="file-name" title="${name}">${name}</div><div class="file-status ${status}" id="fstatus-${name.replace(/\W/g,'_')}">${status === 'processing' ? 'Extracting...' : status}</div></div>`;
+  div.className = 'file-item'; div.id = id;
+  div.innerHTML = `<div class="file-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/></svg></div><div class="file-info"><div class="file-name" title="${name}">${name}</div><div class="file-status processing" id="fst-${name.replace(/\W/g,'_')}">Extracting...</div></div>`;
   list.appendChild(div);
+  switchTab('files');
 }
-function updateFileStatus(name, status) {
-  const el = document.getElementById('fstatus-' + name.replace(/\W/g,'_'));
-  if (el) { el.textContent = status === 'done' ? '✓ Done' : '✕ Error'; el.className = 'file-status ' + status; }
+function updateFileStatus(name, s) {
+  const el = document.getElementById('fst-' + name.replace(/\W/g,'_'));
+  if (el) { el.textContent = s === 'done' ? '✓ Done' : '✕ Error'; el.className = 'file-status ' + s; }
 }
 
 /* ── Sidebar toggles ── */
-function toggleLeft() { document.getElementById('left-sidebar').classList.toggle('collapsed'); updateStatusBarPosition(); }
-function toggleRight() { document.getElementById('right-sidebar').classList.toggle('collapsed'); updateStatusBarPosition(); }
-function updateStatusBarPosition() {
+function toggleLeft() {
+  document.getElementById('left-sidebar').classList.toggle('collapsed');
+  updateStatusBar();
+}
+function toggleRight() {
+  document.getElementById('right-sidebar').classList.toggle('collapsed');
+  updateStatusBar();
+}
+function updateStatusBar() {
   const l = document.getElementById('left-sidebar');
   const r = document.getElementById('right-sidebar');
   const sb = document.getElementById('status-bar');
@@ -888,28 +837,96 @@ function switchTab(tab) {
   document.getElementById('panel-' + tab).classList.add('active');
 }
 
+/* ── Zoom ── */
+function adjustZoom(delta) {
+  currentZoom = Math.min(2, Math.max(0.4, +(currentZoom + delta).toFixed(1)));
+  applyZoom();
+}
+function resetZoom() { currentZoom = 1; applyZoom(); }
+function applyZoom() {
+  const pct = Math.round(currentZoom * 100) + '%';
+  document.getElementById('zoom-label').textContent = pct;
+  document.getElementById('sb-zoom').textContent = pct;
+  document.querySelectorAll('.page-card').forEach(c => {
+    c.style.transform = `scale(${currentZoom})`;
+    c.style.marginBottom = currentZoom < 1 ? `${(currentZoom - 1) * pageH * 0.5}px` : '0';
+  });
+  document.documentElement.style.setProperty('--zoom', currentZoom);
+}
+
+/* ── Page Break ── */
+function insertPageBreak() {
+  document.execCommand('insertHTML', false, '<div class="page-break-line" contenteditable="false">&nbsp;</div><p><br></p>');
+}
+
 /* ── Formatting ── */
 function fmt(cmd) { document.execCommand(cmd, false, null); }
-function applyFont() { document.execCommand('fontName', false, document.getElementById('font-select').value); }
-function applySize() { document.execCommand('fontSize', false, '3'); const sel = window.getSelection(); if (sel.rangeCount) { const spans = sel.getRangeAt(0).commonAncestorContainer.parentElement.querySelectorAll('font[size="3"]'); spans.forEach(s => { s.removeAttribute('size'); s.style.fontSize = document.getElementById('size-select').value + 'pt'; }); } }
-function applyColor(val) { activeColor = val; document.getElementById('color-preview').style.background = val; document.execCommand('foreColor', false, val); }
+function applyFont() { document.execCommand('fontName', false, document.getElementById('font-select').value); document.getElementById('panel-font').value = document.getElementById('font-select').value; }
+function applyFontSize() {
+  const sz = document.getElementById('size-select').value;
+  document.execCommand('fontSize', false, '7');
+  document.querySelectorAll('font[size="7"]').forEach(f => { f.removeAttribute('size'); f.style.fontSize = sz + 'px'; });
+  document.getElementById('panel-size').value = sz;
+}
+function applyColor(val) { document.getElementById('color-preview').style.background = val; document.execCommand('foreColor', false, val); }
 function applyFontPanel() { document.getElementById('font-select').value = document.getElementById('panel-font').value; applyFont(); }
-function applySizePanel() { document.getElementById('size-select').value = document.getElementById('panel-size').value; applySize(); }
-function applyLineHeight() {
-  const lh = document.getElementById('panel-lh').value;
-  document.querySelectorAll('.page-body').forEach(b => b.style.lineHeight = lh);
-}
-function applyPadding() {
-  const p = document.getElementById('panel-padding').value;
-  document.querySelectorAll('.page-body').forEach(b => b.style.padding = p);
-}
+function applySizePanel() { document.getElementById('size-select').value = document.getElementById('panel-size').value; applyFontSize(); }
+function applyLineHeight() { document.querySelectorAll('.page-body').forEach(b => b.style.lineHeight = document.getElementById('panel-lh').value); }
 function setColor(val, el) {
-  activeColor = val;
   document.getElementById('color-preview').style.background = val;
   document.getElementById('panel-color').value = val;
   document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
   if (el) el.classList.add('active');
   document.execCommand('foreColor', false, val);
+}
+
+/* ── Layout ── */
+const pageSizes = {
+  a4: { w: 794, h: 1123 }, letter: { w: 816, h: 1056 },
+  a5: { w: 559, h: 794 }, legal: { w: 816, h: 1344 }
+};
+function applyPagePreset() {
+  const preset = pageSizes[document.getElementById('layout-preset').value];
+  if (!preset) return;
+  let w = preset.w, h = preset.h;
+  if (orientation === 'landscape') { [w, h] = [h, w]; }
+  pageW = w; pageH = h;
+  document.getElementById('layout-w').value = w;
+  document.getElementById('layout-h').value = h;
+  applyLayoutToAll();
+}
+function applyCustomSize() {
+  pageW = parseInt(document.getElementById('layout-w').value) || 794;
+  pageH = parseInt(document.getElementById('layout-h').value) || 1123;
+  applyLayoutToAll();
+}
+function setOrientation(o) {
+  if (orientation === o) return;
+  orientation = o;
+  document.getElementById('orient-portrait').style.fontWeight = o === 'portrait' ? '600' : '400';
+  document.getElementById('orient-landscape').style.fontWeight = o === 'landscape' ? '600' : '400';
+  [pageW, pageH] = [pageH, pageW];
+  document.getElementById('layout-w').value = pageW;
+  document.getElementById('layout-h').value = pageH;
+  applyLayoutToAll();
+}
+function applyMargins() {
+  pageMarginTB = parseInt(document.getElementById('margin-tb').value) || 72;
+  pageMarginLR = parseInt(document.getElementById('margin-lr').value) || 72;
+  applyLayoutToAll();
+}
+const paddingStyles = { compact: '36px 48px', normal: '72px 72px', spacious: '96px 96px' };
+function applyPaddingStyle() {
+  const style = paddingStyles[document.getElementById('padding-style').value] || '72px 72px';
+  document.querySelectorAll('.page-body').forEach(b => b.style.padding = style);
+}
+function applyLayoutToAll() {
+  document.querySelectorAll('.page-card').forEach(c => {
+    c.style.width = pageW + 'px';
+    c.style.minHeight = pageH + 'px';
+    const body = c.querySelector('.page-body');
+    if (body) body.style.padding = pageMarginTB + 'px ' + pageMarginLR + 'px';
+  });
 }
 
 /* ── Insert table ── */
@@ -925,12 +942,7 @@ function insertTable() {
 
 /* ── Find & Replace ── */
 let fnrOpen = false;
-function toggleFnr() {
-  fnrOpen = !fnrOpen;
-  document.getElementById('fnr-bar').classList.toggle('open', fnrOpen);
-  document.getElementById('fnr-toggle').classList.toggle('active', fnrOpen);
-  if (fnrOpen) document.getElementById('fnr-find').focus();
-}
+function toggleFnr() { fnrOpen = !fnrOpen; document.getElementById('fnr-bar').classList.toggle('open', fnrOpen); document.getElementById('fnr-toggle').classList.toggle('active', fnrOpen); if (fnrOpen) document.getElementById('fnr-find').focus(); }
 function closeFnr() { fnrOpen = false; document.getElementById('fnr-bar').classList.remove('open'); document.getElementById('fnr-toggle').classList.remove('active'); }
 function fnrKey(e) { if (e.key === 'Escape') closeFnr(); if (e.key === 'Enter') fnrReplace(); }
 function fnrSearch() {
@@ -941,22 +953,18 @@ function fnrSearch() {
   document.getElementById('fnr-count').textContent = `${total} found`;
 }
 function fnrReplace() {
-  const find = document.getElementById('fnr-find').value;
-  const rep = document.getElementById('fnr-replace').value;
+  const find = document.getElementById('fnr-find').value, rep = document.getElementById('fnr-replace').value;
   if (!find) return;
-  const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'i');
-  document.querySelectorAll('.page-body').forEach(b => { b.innerHTML = b.innerHTML.replace(re, rep); });
+  document.querySelectorAll('.page-body').forEach(b => { b.innerHTML = b.innerHTML.replace(new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'i'), rep); });
   fnrSearch(); updateStatus();
 }
 function fnrReplaceAll() {
-  const find = document.getElementById('fnr-find').value;
-  const rep = document.getElementById('fnr-replace').value;
+  const find = document.getElementById('fnr-find').value, rep = document.getElementById('fnr-replace').value;
   if (!find) return;
-  const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi');
+  const re = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');
   let count = 0;
   document.querySelectorAll('.page-body').forEach(b => { count += (b.innerHTML.match(re)||[]).length; b.innerHTML = b.innerHTML.replace(re, rep); });
-  fnrSearch(); updateStatus();
-  showSuc(`Replaced ${count} occurrence${count!==1?'s':''}.`);
+  fnrSearch(); updateStatus(); showSuc(`Replaced ${count} occurrence${count!==1?'s':''}.`);
 }
 
 /* ── Clear uncertain ── */
@@ -965,102 +973,80 @@ function clearUncertain() {
   document.getElementById('uncertain-hint').classList.remove('show');
 }
 
-/* ── Status bar ── */
-function onPageInput() { updateStatus(); }
+/* ── Status ── */
 function updateStatus() {
-  let words = 0, pageNum = document.querySelectorAll('.page-card').length;
+  let words = 0, pages = document.querySelectorAll('.page-card').length;
   document.querySelectorAll('.page-body').forEach(b => { const t = b.innerText.trim(); if (t) words += t.split(/\s+/).length; });
   document.getElementById('sb-words').textContent = `${words} word${words!==1?'s':''}`;
-  document.getElementById('sb-pages').textContent = `${pageNum} page${pageNum!==1?'s':''}`;
-  document.getElementById('sb-file').textContent = pageNum > 0 ? `${pageNum} page${pageNum!==1?'s':''} loaded` : 'No document';
+  document.getElementById('sb-pages').textContent = `${pages} page${pages!==1?'s':''}`;
 }
 
 /* ── Enable/disable actions ── */
 function enableActions(on) {
-  ['copy-btn','export-txt-btn','export-pdf-btn','export-word-btn','clear-btn','save-btn'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.disabled = !on;
-  });
+  ['copy-btn','export-txt-btn','export-pdf-btn','export-word-btn','clear-btn','save-btn'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = !on; });
 }
 
-/* ── Save to localStorage ── */
+/* ── Save ── */
 function saveToStorage() {
   const data = [];
   document.querySelectorAll('.page-card').forEach(card => {
     const body = card.querySelector('.page-body');
-    const label = card.querySelector('.page-card-label').textContent;
-    const fname = card.querySelector('.page-card-filename').textContent;
-    data.push({ label, fname, html: body.innerHTML });
+    data.push({ label: card.querySelector('.page-card-label').textContent, fname: card.querySelector('.page-card-filename').textContent, html: body.innerHTML, w: card.style.width, h: card.style.minHeight, padding: body.style.padding });
   });
   localStorage.setItem('digitize_save', JSON.stringify(data));
   localStorage.setItem('digitize_save_time', new Date().toLocaleTimeString());
   const btn = document.getElementById('save-btn');
-  btn.classList.add('saved');
-  btn.querySelector('span') ? btn.querySelector('span').textContent = 'Saved!' : null;
-  document.getElementById('sb-saved').textContent = 'Saved at ' + new Date().toLocaleTimeString();
-  setTimeout(() => { btn.classList.remove('saved'); }, 2500);
+  btn.style.color = 'var(--green)';
+  document.getElementById('sb-saved').textContent = 'Saved ' + new Date().toLocaleTimeString();
+  setTimeout(() => btn.style.color = '', 2500);
   showSuc('Document saved to browser.');
 }
-
 function loadFromStorage() {
   const raw = localStorage.getItem('digitize_save');
   if (!raw) { showErr('No saved document found.'); return; }
-  if (!confirm('This will replace your current document with the saved version. Continue?')) return;
+  if (!confirm('Replace current document with saved version?')) return;
   clearAll(true);
-  const data = JSON.parse(raw);
-  data.forEach((p, i) => {
+  JSON.parse(raw).forEach((p, i) => {
     pageCount++;
-    const id = 'page-restored-' + i;
-    pages.push({ id, filename: p.fname, pageNum: i+1, html: p.html });
+    const id = 'pg-restored-' + i;
     const card = document.createElement('div');
     card.className = 'page-card'; card.id = id;
-    card.innerHTML = `
-      <div class="page-card-header">
-        <span class="page-card-label">${p.label}</span>
-        <span class="page-card-filename">${p.fname}</span>
-        <div class="page-card-actions">
-          <button class="page-action-btn" onclick="deletePage('${id}')" title="Remove page">
-            <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg>
-          </button>
-        </div>
-      </div>
-      <div class="page-body" id="body-${id}" contenteditable="true" spellcheck="false" oninput="onPageInput()">${p.html}</div>`;
+    card.style.width = p.w || '794px';
+    card.style.minHeight = p.h || '1123px';
+    card.innerHTML = `<div class="page-card-header"><span class="page-card-label">${p.label}</span><span class="page-card-filename">${p.fname}</span><div class="page-card-actions"><button class="page-action-btn" onclick="movePage('${id}',-1)"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg></button><button class="page-action-btn" onclick="movePage('${id}',1)"><svg viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg></button><button class="page-action-btn" onclick="deletePage('${id}')"><svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg></button></div></div><div class="page-body" id="body-${id}" contenteditable="true" spellcheck="false" style="padding:${p.padding||'72px'}" oninput="updateStatus()">${p.html}</div>`;
     document.getElementById('pages-scroll').appendChild(card);
-    addThumbnail(id, i+1, p.fname, card.querySelector('.page-body').innerText);
+    addThumbnail(id, i+1, p.fname, null, null);
   });
   document.getElementById('empty-state').style.display = 'none';
   enableActions(true); updateStatus();
-  const t = localStorage.getItem('digitize_save_time');
-  showSuc('Restored save' + (t ? ` from ${t}` : '') + '.');
+  showSuc('Restored from ' + (localStorage.getItem('digitize_save_time') || 'last save') + '.');
 }
 
 /* ── Clear all ── */
 function clearAll(silent) {
-  if (!silent && !confirm('Clear all pages and start fresh?')) return;
+  if (!silent && !confirm('Clear everything and start fresh?')) return;
   document.querySelectorAll('.page-card').forEach(c => c.remove());
-  document.getElementById('page-list').innerHTML = '<p class="left-empty">Pages will appear here after upload.</p>';
-  document.getElementById('file-list').innerHTML = '<p style="font-size:12px;color:var(--ink-4);">No files yet.</p>';
+  document.getElementById('page-list').innerHTML = '<p class="left-empty">Pages appear here after upload.</p>';
+  document.getElementById('file-list').innerHTML = '<p style="font-size:11.5px;color:var(--ink-4);">No files yet.</p>';
   document.getElementById('empty-state').style.display = 'flex';
   document.getElementById('uncertain-hint').classList.remove('show');
   document.getElementById('file-input').value = '';
-  pages = []; pageCount = 0;
-  enableActions(false); updateStatus();
+  pageCount = 0; enableActions(false); updateStatus();
 }
 
 /* ── Copy all ── */
 function copyAll() {
   let text = '';
-  document.querySelectorAll('.page-body').forEach((b, i) => { if (i > 0) text += '\n\n---\n\n'; text += b.innerText; });
-  navigator.clipboard.writeText(text).then(() => { showSuc('Copied to clipboard.'); });
+  document.querySelectorAll('.page-body').forEach((b,i) => { if (i > 0) text += '\n\n---\n\n'; text += b.innerText; });
+  navigator.clipboard.writeText(text).then(() => showSuc('Copied to clipboard.'));
 }
 
 /* ── Export TXT ── */
 function exportTxt() {
   let text = '';
-  document.querySelectorAll('.page-card').forEach((c, i) => {
-    const label = c.querySelector('.page-card-label').textContent;
-    const body = c.querySelector('.page-body');
+  document.querySelectorAll('.page-card').forEach((c,i) => {
     if (i > 0) text += '\n\n';
-    text += `=== ${label} ===\n\n` + body.innerText;
+    text += `=== ${c.querySelector('.page-card-label').textContent} ===\n\n` + c.querySelector('.page-body').innerText;
   });
   saveAs(new Blob([text], { type: 'text/plain;charset=utf-8' }), 'document.txt');
 }
@@ -1068,18 +1054,19 @@ function exportTxt() {
 /* ── Export PDF ── */
 function exportPdf() {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const margin = 20; let y = margin; let firstPage = true;
+  const isLand = orientation === 'landscape';
+  const doc = new jsPDF({ unit: 'mm', format: isLand ? 'a4' : 'a4', orientation: isLand ? 'landscape' : 'portrait' });
+  const margin = 20; let y = margin; let first = true;
   document.querySelectorAll('.page-body').forEach(body => {
-    if (!firstPage) { doc.addPage(); y = margin; }
-    firstPage = false;
+    if (!first) { doc.addPage(); y = margin; } first = false;
     body.innerText.split('\n').forEach(line => {
       const t = line.trim();
       const isH = t === t.toUpperCase() && t.length > 2 && t.length < 80 && /[A-Z]/.test(t);
       if (isH) { doc.setFontSize(13); doc.setFont('helvetica','bold'); }
       else { doc.setFontSize(11); doc.setFont('helvetica','normal'); }
       if (!t) { y += 4; return; }
-      doc.splitTextToSize(t, 170).forEach(wl => { if (y > 270) { doc.addPage(); y = margin; } doc.text(wl, margin, y); y += isH ? 7 : 6; });
+      const maxW = isLand ? 250 : 170;
+      doc.splitTextToSize(t, maxW).forEach(wl => { if (y > (isLand ? 190 : 270)) { doc.addPage(); y = margin; } doc.text(wl, margin, y); y += isH ? 7 : 6; });
     });
   });
   doc.save('document.pdf');
@@ -1100,22 +1087,22 @@ async function exportDocx() {
       if (isH) return new Paragraph({ heading: HeadingLevel.HEADING_2, children: [new TextRun({ text: t, bold: true, size: 26 })], spacing: { before: 280, after: 120 } });
       return new Paragraph({ children: [new TextRun({ text: t, size: 24 })], indent: isSub ? { left: 720 } : isNum ? { left: 360 } : undefined, spacing: { after: 100 } });
     });
-    sections.push({ properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } }, children });
+    const isLand = orientation === 'landscape';
+    sections.push({ properties: { page: { size: { width: isLand ? 16838 : 11906, height: isLand ? 11906 : 16838 }, margin: { top: pageMarginTB * 15, right: pageMarginLR * 15, bottom: pageMarginTB * 15, left: pageMarginLR * 15 } } }, children });
   });
-  const document = new Document({ sections });
+  const document = new Document({ sections: sections.length ? sections : [{ children: [] }] });
   saveAs(new Blob([await Packer.toBuffer(document)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'document.docx');
   showSuc('Word document exported.');
 }
 
 /* ── Alerts ── */
-function showErr(msg) { const el=document.getElementById('err'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),7000); }
-function showSuc(msg) { const el=document.getElementById('suc'); el.textContent=msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),4000); }
+function showErr(msg) { const el = document.getElementById('err'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 7000); }
+function showSuc(msg) { const el = document.getElementById('suc'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 4000); }
 
-/* ── Load saved on startup ── */
+/* ── Init ── */
 window.addEventListener('load', () => {
-  const saved = localStorage.getItem('digitize_save');
   const t = localStorage.getItem('digitize_save_time');
-  if (saved) { document.getElementById('sb-saved').textContent = 'Last save: ' + (t || 'unknown'); }
+  if (t) document.getElementById('sb-saved').textContent = 'Last save: ' + t;
 });
 </script>
 </body>
