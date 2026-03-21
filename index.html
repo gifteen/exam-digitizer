@@ -696,7 +696,7 @@ async function digitalPdfToPages(pdf, filename) {
     const canvas = document.createElement('canvas');
     canvas.width = vp2.width; canvas.height = vp2.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp2 }).promise;
-    const thumbB64 = canvas.toDataURL('image/jpeg', 0.85).split(\',\')[1];
+    const thumbB64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
     const pageW = viewport.width;
     const pageH = viewport.height;
