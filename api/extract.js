@@ -18,15 +18,20 @@ export default async function handler(req, res) {
     // Ensure we have clean base64 without data URL prefix
     const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
 
-    const prompt = `You are a document digitization assistant for school exam papers and scheme-of-work documents.
+    const prompt = `You are a document digitization assistant for school documents, exam papers, and quotations.
 
 Extract ALL text from the document preserving structure exactly. Rules:
-- Copy every word exactly as written. NEVER auto-correct spelling.
+- Copy every word and number exactly as written. NEVER auto-correct spelling or change values.
 - If a word is unclear or ambiguous, wrap it like: [?word?]
 - Preserve numbered lists exactly: 1. 2. 3. and a) b) c) and i) ii) iii)
-- Preserve section headers (like "1st TERM", "WEEK", titles) on their own lines in CAPS.
+- Preserve section headers and titles on their own lines in CAPS.
 - Separate sections with a blank line.
-- For tables: use markdown format with | pipes |.
+- TABLES ARE CRITICAL: Always output tables in proper markdown format like this:
+  | QUANTITY | DESCRIPTION | RATE | AMOUNT |
+  |----------|-------------|------|--------|
+  | 20 pcs   | 13amp double | 1500 | 30,000 |
+  Every table row must use | pipe | separators. Never flatten tables into plain text.
+- For company headers and address blocks, preserve each line separately.
 - Output ONLY the document text. No commentary, no explanation, no intro.`;
 
     const body = {
