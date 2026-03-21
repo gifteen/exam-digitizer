@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exam Digitizer</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
+  <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f7f6f3;
+      --surface: #ffffff;
+      --border: #e5e3de;
+      --border-strong: #c9c7c0;
+      --text: #1a1917;
+      --text-muted: #6b6860;
+      --text-faint: #9e9c96;
+      --accent: #1a1917;
+      --accent-fg: #ffffff;
+      --highlight: #fff8e1;
+      --highlight-border: #f59e0b;
+      --success-bg: #f0fdf4;
+      --success-text: #166534;
+      --success-border: #86efac;
+      --error-bg: #fef2f2;
+      --error-text: #991b1b;
+      --error-border: #fca5a5;
+      --radius: 12px;
+      --radius-sm: 7px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 5rem;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+    .logo-mark {
+      width: 38px; height: 38px; min-width: 38px;
+      background: var(--accent);
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-mark svg { width: 20px; height: 20px; stroke: #fff; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .logo-text h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.02em; }
+    .logo-text p { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Alerts ── */
+    .alert {
+      display: none;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      margin-bottom: 12px;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .alert.show { display Irving flex; }
+    .alert-error { background: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-border); }
+    .alert-success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); }
+
+    /* ── Upload ── */
+    .upload-zone {
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.18s;
+      background: var(--surface);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: var(--bg);
+    }
+    .upload-icon-wrap {
+      width: 52px; height: 52px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 14px;
+    }
+    .upload-icon-wrap svg { width: 24px; height: 24px; stroke: var(--text-muted); fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .upload-zone h2 { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+    .upload-zone p { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+    .upload-formats { font-size: 11px; color: var(--text-faint); margin-top: 10px; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-weight: 500;
+      cursor: pointer;
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s, opacity 0.15s;
+      white-space: nowrap;
+      text-decoration: none;
+    }
+    .btn:hover { background: var(--bg); border-color: var(--border-strong); }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+    .btn-primary:hover { opacity: 0.85; background: var(--accent); }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn-ghost { border-color: transparent; background: transparent; color: var(--text-muted); }
+    .btn-ghost:hover { background: var(--bg); border-color: var(--border); color: var(--text); }
+
+    /* ── Processing ── */
+    .processing {
+      display: none;
+      text-align: center;
+      padding: 4rem 2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .spinner {
+      width: 38px; height: 38px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      margin: 0 auto 18px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .processing h3 { font-size: 15px; font-weight: 500; margin-bottom: 6px; }
+    .processing p { font-size: 13px; color: var(--text-muted); }
+
+    /* ── Editor wrap ── */
+    .editor-wrap { display: none; }
+
+    /* Find & Replace */
+    .fnr-panel {
+      display: none;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      padding: 10px 14px;
+      background: #fafaf8;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: var(--radius) var(--radius) 0 0;
+    }
+    .fnr-panel.open { display: flex; }
+    .fnr-input {
+      flex: 1; min-width: 130px; max-width: 200px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-size: 13px; font-family: inherit;
+      background: var(--surface); color: var(--text);
+      outline: none;
+    }
+    .fnr-input:focus { border-color: var(--border-strong); }
+    .fnr-label { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+    .fnr-count { font-size: 12px; color: var(--text-muted); }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      flex-wrap: wrap;
+      row-gap: 6px;
+    }
+    .fnr-panel:not(.open) + .toolbar { border-radius: var(--radius) var(--radius) 0 0; }
+    .fnr-panel.open + .toolbar { border-radius: 0; }
+    .toolbar-sep { width: 1px; height: 16px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+    .tb-btn {
+      padding: 5px 9px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      font-size: 12px; font-weight: 500;
+      cursor: pointer; background: transparent; color: var(--text);
+      font-family: inherit; transition: background 0.12s;
+      white-space: nowrap;
+    }
+    .tb-btn:hover { background: var(--bg); border-color: var(--border); }
+    .tb-btn.active { background: var(--bg); border-color: var(--border-strong); }
+    .toolbar-right { margin-left: auto; display: flex; gap: 4px; }
+
+    /* Legend */
+    .legend {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      background: var(--highlight);
+      border: 1px solid var(--highlight-border);
+      border-bottom: none;
+      font-size: 12px; color: #7a5c00;
+      flex-wrap: wrap;
+    }
+    .legend.show { display: flex; }
+
+    /* Doc body */
+    .doc-body {
+      border: 1px solid var(--border);
+      border-radius: 0 0 var(--radius) var(--radius);
+      background: var(--surface);
+      min-height: 420px;
+      padding: 1.75rem 1.5rem;
+      font-size: 14px; line-height: 1.9;
+      color: var(--text); outline: none;
+      font-family: 'Inter', sans-serif;
+    }
+    .doc-body:focus { border-color: var(--border-strong); }
+    .doc-body table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13px; }
+    .doc-body td, .doc-body th { border: 1px solid var(--border-strong); padding: 6px 10px; text-align: left; }
+    .doc-body th { background: var(--bg); font-weight: 500; }
+    mark.uncertain {
+      background: var(--highlight);
+      border-bottom: 1.5px solid var(--highlight-border);
+      border-radius: 2px; padding: 0 2px;
+      cursor: pointer; font-style: italic;
+    }
+
+    /* Bottom bar */
+    .bottom-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 2px 0;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .word-count { font-size: 12px; color: var(--text-faint); }
+    .export-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      .app { padding: 1rem 0.75rem 4rem; }
+      .header { margin-bottom: 1rem; }
+      .logo-text h1 { font-size: 15px; }
+      .upload-zone { padding: 2rem 1rem; }
+      .upload-zone h2 { font-size: 14px; }
+      .doc-body { padding: 1.25rem 1rem; font-size: 13px; }
+      .toolbar { padding: 6px 8px; gap: 3px; }
+      .tb-btn { padding: 5px 7px; font-size: 11px; }
+      .bottom-bar { flex-direction: column; align-items: flex-start; }
+      .export-btns { width: 100%; }
+      .export-btns .btn { flex: 1; justify-content: center; font-size: 13px; }
+      .fnr-input { min-width: 110px; }
+      .fnr-panel { gap: 6px; }
+    }
+
+    @media (max-width: 400px) {
+      .toolbar-sep { display: none; }
+      .tb-btn { padding: 5px 6px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14,2 14,8 20,8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    </div>
+    <div class="logo-text">
+      <h1>Exam Digitizer</h1>
+      <p>Scan → Extract → Edit → Export</p>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div class="alert alert-error" id="err"></div>
+  <div class="alert alert-success" id="suc"></div>
+
+  <!-- Upload -->
+  <div id="upload-area">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" style="display:none" accept="image/*,.pdf" onchange="handleFile(event)" />
+      <div class="upload-icon-wrap">
+        <svg viewBox="0 0 24 24"><polyline points="16,16 12,12 8,16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39,18.39A5,5,0,0,0,18,9h-1.26A8,8,0,1,0,3,16.3"/></svg>
+      </div>
+      <h2>Drop your document here</h2>
+      <p>AI will extract and structure the text for you</p>
+      <button class="btn" onclick="event.stopPropagation(); document.getElementById('file-input').click()">Choose file</button>
+      <div class="upload-formats">JPG · PNG · PDF (scanned or digital)</div>
+    </div>
+  </div>
+
+  <!-- Processing -->
+  <div class="processing" id="processing">
+    <div class="spinner"></div>
+    <h3>Reading your document...</h3>
+    <p id="proc-sub">Extracting text and structure</p>
+  </div>
+
+  <!-- Editor -->
+  <div class="editor-wrap" id="editor-wrap">
+
+    <!-- Find & Replace -->
+    <div class="fnr-panel" id="fnr-panel">
+      <span class="fnr-label">Find</span>
+      <input class="fnr-input" id="fnr-find" placeholder="Search..." oninput="fnrSearch()" onkeydown="fnrKey(event)" />
+      <span class="fnr-label">Replace</span>
+      <input class="fnr-input" id="fnr-replace" placeholder="Replace with..." onkeydown="fnrKey(event)" />
+      <button class="btn btn-sm" onclick="fnrReplace()">Replace</button>
+      <button class="btn btn-sm" onclick="fnrReplaceAll()">All</button>
+      <span class="fnr-count" id="fnr-count"></span>
+      <button class="btn btn-sm btn-ghost" onclick="closeFnr()" style="margin-left:auto">✕</button>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <div style="display:flex;gap:3px;align-items:center;flex-wrap:wrap;">
+        <button class="tb-btn" onclick="fmt('bold')"><b>B</b></button>
+        <button class="tb-btn" onclick="fmt('italic')"><i>I</i></button>
+        <button class="tb-btn" onclick="fmt('underline')"><u>U</u></button>
+        <div class="toolbar-sep"></div>
+        <button class="tb-btn" onclick="fmt('insertOrderedList')">1. List</button>
+        <button class="tb-btn" onclick="fmt('insertUnorderedList')">• List</button>
+        <div class="toolbar-sep"></div>
+        <button class="tb-btn" onclick="insertTable()">+ Table</button>
+        <div class="toolbar-sep"></div>
+        <button class="tb-btn" id="fnr-btn" onclick="toggleFnr()">Find & Replace</button>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-sm btn-ghost" onclick="resetTool()">New doc</button>
+      </div>
+    </div>
+
+    <!-- Uncertain words legend -->
+    <div class="legend" id="legend">
+      <span>⚠️</span>
+      <span>Highlighted words were unclear in the scan — click to fix</span>
+      <button class="btn btn-sm btn-ghost" onclick="clearUncertain()" style="margin-left:auto">Clear highlights</button>
+    </div>
+
+    <!-- Doc body -->
+    <div class="doc-body" id="doc-body" contenteditable="true" spellcheck="false" oninput="updateWordCount()"></div>
+
+    <!-- Bottom bar -->
+    <div class="bottom-bar">
+      <span class="word-count" id="word-count">0 words</span>
+      <div class="export-btns">
+        <button class="btn btn-sm" onclick="exportTxt()">Export .txt</button>
+        <button class="btn btn-sm" onclick="exportPdf()">Export PDF</button>
+        <button class="btn btn-sm btn-primary" onclick="exportDocx()">Export Word</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Alerts ── */
+function showErr(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg; el.style.display = 'flex';
+  setTimeout(() => el.style.display = 'none', 7000);
+}
+function showSuc(msg) {
+  const el = document.getElementById('suc');
+  el.textContent = msg; el.style.display = 'flex';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+/* ── Drag & Drop ── */
+const dz = document.getElementById('drop-zone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+});
+function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
+
+/* ── File processing ── */
+function processFile(file) {
+  document.getElementById('upload-area').style.display = 'none';
+  document.getElementById('processing').style.display = 'block';
+  const reader = new FileReader();
+  reader.onload = async e => {
+    const b64 = e.target.result.split(',')[1];
+    await extract(b64, file.type || 'image/jpeg');
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── AI Extraction — calls our server proxy ── */
+async function extract(b64, mime) {
+  const sub = document.getElementById('proc-sub');
+  try {
+    sub.textContent = 'Sending to AI for analysis...';
+    const isPdf = mime === 'application/pdf';
+    const contentBlock = isPdf
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
+      : { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
+
+    const system = `You are a document digitization assistant for school exam papers and scheme-of-work documents.
+
+Extract ALL text from the document preserving structure exactly. Rules:
+- Copy every word exactly as written. NEVER auto-correct spelling.
+- If a word is unclear or ambiguous, wrap it like: [?word?]
+- Preserve numbered lists exactly: 1. 2. 3. and a) b) c) and i) ii) iii)
+- Preserve section headers (like "1st TERM", "WEEK", titles) on their own lines.
+- Separate sections with a blank line.
+- For tables: use markdown format with | pipes |.
+- Output ONLY the document text. No commentary or explanation.`;
+
+    sub.textContent = 'AI is reading your document...';
+
+    const res = await fetch('/api/extract', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 4096,
+        system,
+        messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extract all text from this document.' }] }]
+      })
+    });
+
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `Error ${res.status}`); }
+
+    sub.textContent = 'Formatting output...';
+    const data = await res.json();
+    const text = data.content.map(b => b.text || '').join('\n');
+
+    document.getElementById('processing').style.display = 'none';
+    document.getElementById('editor-wrap').style.display = 'block';
+    renderExtracted(text);
+
+  } catch (err) {
+    document.getElementById('processing').style.display = 'none';
+    document.getElementById('upload-area').style.display = 'block';
+    showErr('Extraction failed: ' + err.message);
+  }
+}
+
+/* ── Render with uncertain highlights ── */
+function renderExtracted(raw) {
+  const body = document.getElementById('doc-body');
+  let html = raw
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Uncertain — click to edit">$1</mark>')
+    .replace(/\n\n/g, '</p><p style="margin-bottom:0.5rem">').replace(/\n/g, '<br>');
+  body.innerHTML = '<p>' + html + '</p>';
+  if (body.querySelectorAll('mark.uncertain').length > 0) document.getElementById('legend').classList.add('show');
+  updateWordCount();
+}
+
+/* ── Formatting ── */
+function fmt(cmd) { document.execCommand(cmd, false, null); document.getElementById('doc-body').focus(); }
+
+/* ── Insert table ── */
+function insertTable() {
+  const rows = parseInt(prompt('Rows?', '3') || '0');
+  const cols = parseInt(prompt('Columns?', '3') || '0');
+  if (!rows || !cols) return;
+  let html = '<table><tr>' + Array(cols).fill(0).map((_, i) => `<th contenteditable="true">Header ${i+1}</th>`).join('') + '</tr>';
+  for (let r = 0; r < rows - 1; r++)
+    html += '<tr>' + Array(cols).fill(0).map(() => '<td contenteditable="true">Cell</td>').join('') + '</tr>';
+  html += '</table><p><br></p>';
+  document.execCommand('insertHTML', false, html);
+}
+
+/* ── Find & Replace ── */
+let fnrOpen = false;
+function toggleFnr() {
+  fnrOpen = !fnrOpen;
+  document.getElementById('fnr-panel').classList.toggle('open', fnrOpen);
+  document.getElementById('fnr-btn').classList.toggle('active', fnrOpen);
+  if (fnrOpen) document.getElementById('fnr-find').focus();
+}
+function closeFnr() {
+  fnrOpen = false;
+  document.getElementById('fnr-panel').classList.remove('open');
+  document.getElementById('fnr-btn').classList.remove('active');
+}
+function fnrKey(e) { if (e.key === 'Escape') closeFnr(); if (e.key === 'Enter') fnrReplace(); }
+function fnrSearch() {
+  const term = document.getElementById('fnr-find').value;
+  if (!term) { document.getElementById('fnr-count').textContent = ''; return; }
+  const matches = [...document.getElementById('doc-body').innerText.matchAll(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'))];
+  document.getElementById('fnr-count').textContent = `${matches.length} match${matches.length !== 1 ? 'es' : ''}`;
+}
+function fnrReplace() {
+  const find = document.getElementById('fnr-find').value;
+  const rep = document.getElementById('fnr-replace').value;
+  if (!find) return;
+  const body = document.getElementById('doc-body');
+  body.innerHTML = body.innerHTML.replace(new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), rep);
+  fnrSearch(); updateWordCount();
+}
+function fnrReplaceAll() {
+  const find = document.getElementById('fnr-find').value;
+  const rep = document.getElementById('fnr-replace').value;
+  if (!find) return;
+  const body = document.getElementById('doc-body');
+  const regex = new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+  const count = (body.innerHTML.match(regex) || []).length;
+  body.innerHTML = body.innerHTML.replace(regex, rep);
+  fnrSearch(); updateWordCount();
+  showSuc(`Replaced ${count} occurrence${count !== 1 ? 's' : ''}.`);
+}
+
+/* ── Clear uncertain ── */
+function clearUncertain() {
+  document.getElementById('doc-body').querySelectorAll('mark.uncertain').forEach(m => m.replaceWith(document.createTextNode(m.textContent)));
+  document.getElementById('legend').classList.remove('show');
+}
+
+/* ── Word count ── */
+function updateWordCount() {
+  const t = document.getElementById('doc-body').innerText.trim();
+  const c = t ? t.split(/\s+/).length : 0;
+  document.getElementById('word-count').textContent = `${c} word${c !== 1 ? 's' : ''}`;
+}
+
+/* ── Export TXT ── */
+function exportTxt() {
+  const blob = new Blob([document.getElementById('doc-body').innerText], { type: 'text/plain;charset=utf-8' });
+  saveAs(blob, 'document.txt');
+}
+
+/* ── Export PDF ── */
+function exportPdf() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const lines = document.getElementById('doc-body').innerText.split('\n');
+  const margin = 20;
+  const pageW = doc.internal.pageSize.getWidth();
+  const usableW = pageW - margin * 2;
+  let y = margin;
+
+  doc.setFont('helvetica');
+
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length > 2 && trimmed.length < 60 && /[A-Z]/.test(trimmed);
+
+    if (isHeading) {
+      doc.setFontSize(13); doc.setFont('helvetica', 'bold');
+    } else {
+      doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+    }
+
+    if (!trimmed) { y += 4; return; }
+
+    const wrapped = doc.splitTextToSize(trimmed, usableW);
+    wrapped.forEach(wl => {
+      if (y > 270) { doc.addPage(); y = margin; }
+      doc.text(wl, margin, y);
+      y += isHeading ? 7 : 6;
+    });
+  });
+
+  doc.save('document.pdf');
+  showSuc('PDF exported successfully.');
+}
+
+/* ── Export DOCX ── */
+async function exportDocx() {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
+  const lines = document.getElementById('doc-body').innerText.split('\n');
+
+  const children = lines.map(line => {
+    const t = line.trim();
+    if (!t) return new Paragraph({ children: [new TextRun('')], spacing: { after: 80 } });
+
+    const isHeading = t === t.toUpperCase() && t.length > 2 && t.length < 60 && /[A-Z]/.test(t);
+    const isSubItem = /^[a-z][\.\)]/.test(t) || /^[ivxIVX]+[\.\)]/.test(t);
+    const isNumbered = /^\d+[\.\)]/.test(t);
+
+    if (isHeading) return new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      children: [new TextRun({ text: t, bold: true, size: 26 })],
+      spacing: { before: 280, after: 120 }
+    });
+
+    return new Paragraph({
+      children: [new TextRun({ text: t, size: 24 })],
+      indent: isSubItem ? { left: 720 } : isNumbered ? { left: 360 } : undefined,
+      spacing: { after: 100 }
+    });
+  });
+
+  const document = new Document({
+    sections: [{
+      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 } } },
+      children
+    }]
+  });
+
+  const buffer = await Packer.toBuffer(document);
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'document.docx');
+  showSuc('Word document exported successfully.');
+}
+
+/* ── Reset ── */
+function resetTool() {
+  if (!confirm('Clear current document and start fresh?')) return;
+  document.getElementById('editor-wrap').style.display = 'none';
+  document.getElementById('upload-area').style.display = 'block';
+  document.getElementById('doc-body').innerHTML = '';
+  document.getElementById('legend').classList.remove('show');
+  document.getElementById('file-input').value = '';
+  updateWordCount();
+}
+</script>
+</body>
+</html>
