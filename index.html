@@ -692,103 +692,167 @@ async function digitalPdfToPages(pdf, filename) {
     const viewport = page.getViewport({ scale: 1.0 });
 
     // Render page thumbnail
+    const vp2 = page.getViewport({ scale: 2.0 });
     const canvas = document.createElement('canvas');
-    const scale = 2.0;
-    const vp = page.getViewport({ scale });
-    canvas.width = vp.width; canvas.height = vp.height;
-    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    canvas.width = vp2.width; canvas.height = vp2.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp2 }).promise;
     const thumbB64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
 
-    // Group text items into lines based on Y position
-    const lines = [];
-    let currentLine = null;
-    const LINE_TOLERANCE = 3;
+    // ── STEP 1: Sort all items by Y (desc) then X (asc) ──
+    const rawItems = textContent.items.filter(it => it.str && it.str.length > 0);
+    rawItems.sort((a, b) => {
+      const dy = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+      if (Math.abs(dy) > 5) return dy;
+      return a.transform[4] - b.transform[4];
+    });
 
-    // Sort items by Y then X
-    const items = textContent.items
-      .filter(item => item.str && item.str.trim())
-      .sort((a, b) => {
-        const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]);
-        if (Math.abs(yDiff) > LINE_TOLERANCE) return yDiff;
-        return a.transform[4] - b.transform[4];
-      });
-
-    for (const item of items) {
-      const y = Math.round(item.transform[5]);
-      const x = item.transform[4];
-      const fontSize = Math.abs(item.transform[3]);
-      const text = item.str;
-
-      if (!currentLine || Math.abs(currentLine.y - y) > LINE_TOLERANCE) {
-        currentLine = { y, items: [], maxFontSize: fontSize };
-        lines.push(currentLine);
+    // ── STEP 2: Group into lines (generous tolerance) ──
+    const LINE_TOL = 6;
+    const rawLines = [];
+    let curLine = null;
+    for (const it of rawItems) {
+      const y = it.transform[5];
+      const x = it.transform[4];
+      const w = it.width || 0;
+      const fs = Math.abs(it.transform[3]) || Math.abs(it.transform[0]) || 10;
+      if (!curLine || Math.abs(curLine.y - y) > LINE_TOL) {
+        curLine = { y, rawItems: [] };
+        rawLines.push(curLine);
       }
-      currentLine.items.push({ text, x, fontSize });
-      currentLine.maxFontSize = Math.max(currentLine.maxFontSize, fontSize);
+      curLine.rawItems.push({ text: it.str, x, w, fs, fontName: it.fontName || '' });
     }
 
-    // Convert lines to HTML
-    const pageHeight = viewport.height;
+    // ── STEP 3: Merge fragments that are very close (broken words fix) ──
+    const lines = rawLines.map(line => {
+      // Sort items left to right
+      line.rawItems.sort((a, b) => a.x - b.x);
+      const merged = [];
+      for (const item of line.rawItems) {
+        if (merged.length === 0) {
+          merged.push({ ...item });
+          continue;
+        }
+        const prev = merged[merged.length - 1];
+        const prevEnd = prev.x + (prev.w || prev.text.length * prev.fs * 0.55);
+        const gap = item.x - prevEnd;
+        // If gap < 4px — same word fragment, merge directly
+        // If gap < 20px — close enough to be same word (space between letters issue)
+        // If gap >= 20px — new column item
+        if (gap < 4) {
+          prev.text += item.text;
+          prev.w = (item.x + (item.w || 0)) - prev.x;
+        } else if (gap < 18) {
+          prev.text += ' ' + item.text;
+          prev.w = (item.x + (item.w || 0)) - prev.x;
+        } else {
+          merged.push({ ...item });
+        }
+      }
+      return { y: line.y, items: merged };
+    }).filter(l => l.items.length > 0 && l.items.some(it => it.text.trim()));
+
+    // ── STEP 4: Detect column structure across all lines ──
+    // Collect all X positions of items to find column bands
+    const allXPositions = [];
+    lines.forEach(line => line.items.forEach(it => allXPositions.push(Math.round(it.x))));
+
+    // Cluster X positions into column zones using simple binning
+    const COL_BAND = 30; // px tolerance for same column
+    const colZones = [];
+    const sortedX = [...new Set(allXPositions)].sort((a, b) => a - b);
+    for (const x of sortedX) {
+      const existing = colZones.find(z => Math.abs(z.center - x) < COL_BAND);
+      if (existing) {
+        existing.xs.push(x);
+        existing.center = existing.xs.reduce((s, v) => s + v, 0) / existing.xs.length;
+      } else {
+        colZones.push({ center: x, xs: [x] });
+      }
+    }
+    colZones.sort((a, b) => a.center - b.center);
+
+    // A line is "tabular" if its items align to 2+ distinct column zones
+    function getColIndex(x) {
+      let best = 0, bestDist = Infinity;
+      colZones.forEach((z, i) => { const d = Math.abs(z.center - x); if (d < bestDist) { bestDist = d; best = i; } });
+      return best;
+    }
+
+    function lineColIndices(line) {
+      return [...new Set(line.items.map(it => getColIndex(it.x)))];
+    }
+
+    function isTabular(line) {
+      const cols = lineColIndices(line);
+      return cols.length >= 2;
+    }
+
+    // ── STEP 5: Build page HTML ──
+    const pageAvgFs = lines.reduce((s, l) => s + (l.items[0]?.fs || 10), 0) / (lines.length || 1);
     let html = '';
-    const pageAvgFontSize = lines.reduce((s, l) => s + l.maxFontSize, 0) / (lines.length || 1);
-
-    // Detect table-like lines (multiple items with significant X gaps)
-    function isTableLike(line) {
-      if (line.items.length < 3) return false;
-      const gaps = [];
-      for (let i = 1; i < line.items.length; i++) {
-        gaps.push(line.items[i].x - (line.items[i-1].x + line.items[i-1].text.length * line.items[i-1].fontSize * 0.5));
-      }
-      return gaps.some(g => g > 20);
-    }
-
-    // Group consecutive table-like lines
     let i = 0;
+
     while (i < lines.length) {
       const line = lines[i];
       const lineText = line.items.map(it => it.text).join(' ').trim();
       if (!lineText) { i++; continue; }
 
-      const isHeading = line.maxFontSize > pageAvgFontSize * 1.15;
-      const isBold = line.items.some(it => it.fontName && it.fontName.toLowerCase().includes('bold'));
+      // Detect if this starts a table block
+      const tabularRun = [];
+      let j = i;
+      while (j < lines.length) {
+        const l = lines[j];
+        const lt = l.items.map(it => it.text).join(' ').trim();
+        if (!lt) { j++; continue; }
+        if (isTabular(l)) { tabularRun.push(l); j++; }
+        else break;
+      }
 
-      // Check for table block
-      if (isTableLike(line) && i + 1 < lines.length && isTableLike(lines[i+1])) {
-        // Collect all table lines
-        const tableLines = [];
-        while (i < lines.length && (isTableLike(lines[i]) || tableLines.length === 0)) {
-          if (lines[i].items.length >= 2) tableLines.push(lines[i]);
-          else break;
-          i++;
-        }
+      if (tabularRun.length >= 2) {
+        // Figure out column count from the line with most columns
+        const maxCols = Math.max(...tabularRun.map(l => lineColIndices(l).length));
+        const numCols = Math.max(maxCols, 2);
+        const colW = Math.max(60, Math.floor(650 / numCols));
+        const cg = '<colgroup>' + Array(numCols).fill(0).map(() => `<col style="width:${colW}px">`).join('') + '</colgroup>';
 
-        if (tableLines.length >= 2) {
-          // Build table HTML
-          const colCount = Math.max(...tableLines.map(l => l.items.length));
-          const cw = Math.max(80, Math.floor(620 / colCount));
-          const cg = '<colgroup>' + Array(colCount).fill(0).map(() => `<col style="width:${cw}px">`).join('') + '</colgroup>';
-          let tbl = `<div class="tbl-wrap"><table>${cg}<thead><tr>`;
-          const headerLine = tableLines[0];
-          tbl += headerLine.items.map(it => `<th contenteditable="true">${escHtml(it.text)}<div class="col-resize-handle"></div></th>`).join('');
-          tbl += '</tr></thead><tbody>';
-          for (let r = 1; r < tableLines.length; r++) {
-            tbl += '<tr>';
-            const rowItems = tableLines[r].items;
-            for (let c = 0; c < colCount; c++) {
-              tbl += `<td contenteditable="true">${rowItems[c] ? escHtml(rowItems[c].text) : ''}</td>`;
-            }
-            tbl += '</tr>';
-          }
-          tbl += '</tbody></table></div>';
-          html += tbl;
-          continue;
+        let tbl = `<div class="tbl-wrap"><table>${cg}<thead><tr>`;
+        // Header row
+        const headerLine = tabularRun[0];
+        const headerCells = Array(numCols).fill('');
+        headerLine.items.forEach(it => {
+          const col = getColIndex(it.x);
+          const slot = colZones.indexOf(colZones.find(z => Math.abs(z.center - it.x) < COL_BAND));
+          const normalised = Math.min(slot, numCols - 1);
+          headerCells[normalised] = (headerCells[normalised] ? headerCells[normalised] + ' ' : '') + it.text;
+        });
+        tbl += headerCells.map(c => `<th contenteditable="true">${escHtml(c)}<div class="col-resize-handle"></div></th>`).join('');
+        tbl += '</tr></thead><tbody>';
+
+        // Body rows
+        for (let r = 1; r < tabularRun.length; r++) {
+          const rowLine = tabularRun[r];
+          const rowCells = Array(numCols).fill('');
+          rowLine.items.forEach(it => {
+            const slot = colZones.indexOf(colZones.find(z => Math.abs(z.center - it.x) < COL_BAND));
+            const normalised = Math.min(Math.max(slot, 0), numCols - 1);
+            rowCells[normalised] = (rowCells[normalised] ? rowCells[normalised] + ' ' : '') + it.text;
+          });
+          tbl += '<tr>' + rowCells.map(c => `<td contenteditable="true">${escHtml(c)}</td>`).join('') + '</tr>';
         }
+        tbl += '</tbody></table></div>';
+        html += tbl;
+        i = j;
+        continue;
       }
 
       // Regular line
+      const fs = line.items[0]?.fs || 10;
+      const isHeading = fs > pageAvgFs * 1.2 || lineText === lineText.toUpperCase() && lineText.length > 3 && /[A-Z]/.test(lineText);
+      const isBold = line.items.some(it => it.fontName.toLowerCase().includes('bold'));
       const escaped = escHtml(lineText);
+
       if (isHeading) {
-        html += `<h2 style="font-size:${Math.round(line.maxFontSize * 1.2)}px">${escaped}</h2>`;
+        html += `<h2>${escaped}</h2>`;
       } else if (isBold) {
         html += `<p><strong>${escaped}</strong></p>`;
       } else {
