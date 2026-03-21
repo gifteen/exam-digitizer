@@ -662,7 +662,181 @@ function processFiles(files) {
   valid.forEach(processFile);
 }
 
-/* ── Process file ── */
+/* ── Detect if PDF has embedded text (digital) or is scanned ── */
+async function detectPdfType(file) {
+  const lib = window['pdfjs-dist/build/pdf'];
+  lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const ab = await file.arrayBuffer();
+  const pdf = await lib.getDocument({ data: ab }).promise;
+  let totalChars = 0;
+  const pagesToCheck = Math.min(3, pdf.numPages);
+  for (let i = 1; i <= pagesToCheck; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    totalChars += textContent.items.reduce((sum, item) => sum + (item.str || '').trim().length, 0);
+  }
+  // If average chars per page > 50, it's a digital PDF with real text
+  return { pdf, isDigital: (totalChars / pagesToCheck) > 50, totalChars };
+}
+
+/* ── Convert digital PDF to editable HTML preserving structure ── */
+async function digitalPdfToPages(pdf, filename) {
+  const lib = window['pdfjs-dist/build/pdf'];
+  lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    document.getElementById('proc-sub').textContent = `Converting page ${pageNum} of ${pdf.numPages}...`;
+
+    const page = await pdf.getPage(pageNum);
+    const textContent = await page.getTextContent();
+    const viewport = page.getViewport({ scale: 1.0 });
+
+    // Render page thumbnail
+    const canvas = document.createElement('canvas');
+    const scale = 2.0;
+    const vp = page.getViewport({ scale });
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    const thumbB64 = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+
+    // Group text items into lines based on Y position
+    const lines = [];
+    let currentLine = null;
+    const LINE_TOLERANCE = 3;
+
+    // Sort items by Y then X
+    const items = textContent.items
+      .filter(item => item.str && item.str.trim())
+      .sort((a, b) => {
+        const yDiff = Math.round(b.transform[5]) - Math.round(a.transform[5]);
+        if (Math.abs(yDiff) > LINE_TOLERANCE) return yDiff;
+        return a.transform[4] - b.transform[4];
+      });
+
+    for (const item of items) {
+      const y = Math.round(item.transform[5]);
+      const x = item.transform[4];
+      const fontSize = Math.abs(item.transform[3]);
+      const text = item.str;
+
+      if (!currentLine || Math.abs(currentLine.y - y) > LINE_TOLERANCE) {
+        currentLine = { y, items: [], maxFontSize: fontSize };
+        lines.push(currentLine);
+      }
+      currentLine.items.push({ text, x, fontSize });
+      currentLine.maxFontSize = Math.max(currentLine.maxFontSize, fontSize);
+    }
+
+    // Convert lines to HTML
+    const pageHeight = viewport.height;
+    let html = '';
+    const pageAvgFontSize = lines.reduce((s, l) => s + l.maxFontSize, 0) / (lines.length || 1);
+
+    // Detect table-like lines (multiple items with significant X gaps)
+    function isTableLike(line) {
+      if (line.items.length < 3) return false;
+      const gaps = [];
+      for (let i = 1; i < line.items.length; i++) {
+        gaps.push(line.items[i].x - (line.items[i-1].x + line.items[i-1].text.length * line.items[i-1].fontSize * 0.5));
+      }
+      return gaps.some(g => g > 20);
+    }
+
+    // Group consecutive table-like lines
+    let i = 0;
+    while (i < lines.length) {
+      const line = lines[i];
+      const lineText = line.items.map(it => it.text).join(' ').trim();
+      if (!lineText) { i++; continue; }
+
+      const isHeading = line.maxFontSize > pageAvgFontSize * 1.15;
+      const isBold = line.items.some(it => it.fontName && it.fontName.toLowerCase().includes('bold'));
+
+      // Check for table block
+      if (isTableLike(line) && i + 1 < lines.length && isTableLike(lines[i+1])) {
+        // Collect all table lines
+        const tableLines = [];
+        while (i < lines.length && (isTableLike(lines[i]) || tableLines.length === 0)) {
+          if (lines[i].items.length >= 2) tableLines.push(lines[i]);
+          else break;
+          i++;
+        }
+
+        if (tableLines.length >= 2) {
+          // Build table HTML
+          const colCount = Math.max(...tableLines.map(l => l.items.length));
+          const cw = Math.max(80, Math.floor(620 / colCount));
+          const cg = '<colgroup>' + Array(colCount).fill(0).map(() => `<col style="width:${cw}px">`).join('') + '</colgroup>';
+          let tbl = `<div class="tbl-wrap"><table>${cg}<thead><tr>`;
+          const headerLine = tableLines[0];
+          tbl += headerLine.items.map(it => `<th contenteditable="true">${escHtml(it.text)}<div class="col-resize-handle"></div></th>`).join('');
+          tbl += '</tr></thead><tbody>';
+          for (let r = 1; r < tableLines.length; r++) {
+            tbl += '<tr>';
+            const rowItems = tableLines[r].items;
+            for (let c = 0; c < colCount; c++) {
+              tbl += `<td contenteditable="true">${rowItems[c] ? escHtml(rowItems[c].text) : ''}</td>`;
+            }
+            tbl += '</tr>';
+          }
+          tbl += '</tbody></table></div>';
+          html += tbl;
+          continue;
+        }
+      }
+
+      // Regular line
+      const escaped = escHtml(lineText);
+      if (isHeading) {
+        html += `<h2 style="font-size:${Math.round(line.maxFontSize * 1.2)}px">${escaped}</h2>`;
+      } else if (isBold) {
+        html += `<p><strong>${escaped}</strong></p>`;
+      } else {
+        html += `<p>${escaped}</p>`;
+      }
+      i++;
+    }
+
+    addPageRaw(html, filename, pageNum, thumbB64);
+  }
+}
+
+function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+/* ── Add page with raw HTML (for digital PDFs) ── */
+function addPageRaw(html, filename, pageNum, thumbB64) {
+  pageCount++;
+  const id = 'pg-' + Date.now() + '-' + pageCount;
+
+  const card = document.createElement('div');
+  card.className = 'page-card';
+  card.id = id;
+  card.style.width = pageW + 'px';
+  card.style.minHeight = pageH + 'px';
+  card.innerHTML = `
+    <div class="page-card-header">
+      <span class="page-card-label">Page ${pageCount}</span>
+      <span class="page-card-filename">${filename}</span>
+      <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+        <span style="font-size:10px;padding:2px 7px;background:var(--green-light);color:var(--green);border:1px solid #b7dfc9;border-radius:3px;letter-spacing:0.04em;">Digital</span>
+        <div class="page-card-actions">
+          <button class="page-action-btn" onclick="movePage('${id}',-1)" title="Move up"><svg viewBox="0 0 24 24"><polyline points="18,15 12,9 6,15"/></svg></button>
+          <button class="page-action-btn" onclick="movePage('${id}',1)" title="Move down"><svg viewBox="0 0 24 24"><polyline points="6,9 12,15 18,9"/></svg></button>
+          <button class="page-action-btn" onclick="deletePage('${id}')" title="Delete page"><svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19,6l-1,14a2,2,0,0,1-2,2H8a2,2,0,0,1-2-2L5,6"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <div class="page-body" id="body-${id}" contenteditable="true" spellcheck="false"
+         style="padding:${pageMarginTB}px ${pageMarginLR}px;"
+         oninput="updateStatus()">${html || '<p><br></p>'}</div>`;
+
+  document.getElementById('pages-scroll').appendChild(card);
+  addThumbnail(id, pageCount, filename, thumbB64, 'image/jpeg');
+  enableActions(true);
+  updateStatus();
+}
+
+/* ── Process file — smart routing ── */
 async function processFile(file) {
   addFileToList(file.name, 'processing');
   document.getElementById('empty-state').style.display = 'none';
@@ -670,14 +844,28 @@ async function processFile(file) {
 
   try {
     if (file.type === 'application/pdf') {
-      document.getElementById('proc-sub').textContent = 'Converting PDF pages...';
-      const images = await pdfToImages(file);
-      for (let i = 0; i < images.length; i++) {
-        document.getElementById('proc-sub').textContent = `Extracting page ${i+1} of ${images.length}...`;
-        const text = await extractImage(images[i], 'image/jpeg');
-        if (text !== null) addPage(text, file.name, i+1, images[i]);
+      document.getElementById('proc-sub').textContent = 'Analysing PDF...';
+
+      const { pdf, isDigital, totalChars } = await detectPdfType(file);
+
+      if (isDigital) {
+        // Digital PDF — direct conversion preserving structure
+        document.getElementById('proc-sub').textContent = 'Digital PDF detected — converting directly...';
+        showSuc(`Digital PDF detected (${totalChars} chars) — converting with formatting preserved.`);
+        await digitalPdfToPages(pdf, file.name);
+      } else {
+        // Scanned PDF — fall back to AI extraction
+        document.getElementById('proc-sub').textContent = 'Scanned PDF detected — using AI extraction...';
+        showSuc('Scanned PDF detected — running AI text extraction.');
+        const images = await pdfToImages(file);
+        for (let i = 0; i < images.length; i++) {
+          document.getElementById('proc-sub').textContent = `Extracting page ${i+1} of ${images.length}...`;
+          const text = await extractImage(images[i], 'image/jpeg');
+          if (text !== null) addPage(text, file.name, i+1, images[i]);
+        }
       }
     } else {
+      // Image file — AI extraction
       const reader = new FileReader();
       reader.onload = async e => {
         const b64 = e.target.result.split(',')[1];
