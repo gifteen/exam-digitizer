@@ -11,6 +11,13 @@ export default async function handler(req, res) {
   try {
     const { imageBase64, mimeType } = req.body;
 
+    if (!imageBase64 || !mimeType) {
+      return res.status(400).json({ error: 'Missing image data or mime type' });
+    }
+
+    // Ensure we have clean base64 without data URL prefix
+    const cleanBase64 = imageBase64.replace(/^data:[^;]+;base64,/, '');
+
     const prompt = `You are a document digitization assistant for school exam papers and scheme-of-work documents.
 
 Extract ALL text from the document preserving structure exactly. Rules:
@@ -31,7 +38,12 @@ Extract ALL text from the document preserving structure exactly. Rules:
           role: 'user',
           content: [
             { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:${mimeType};base64,${cleanBase64}`
+              }
+            }
           ]
         }
       ]
@@ -47,7 +59,10 @@ Extract ALL text from the document preserving structure exactly. Rules:
     });
 
     const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || 'Groq API error' });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ error: data.error?.message || 'Groq API error' });
+    }
 
     const text = data.choices?.[0]?.message?.content || '';
     return res.status(200).json({ text });
