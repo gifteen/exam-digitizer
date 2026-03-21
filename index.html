@@ -745,13 +745,14 @@ async function digitalPdfToPages(pdf, filename) {
         const next = lineItems[k];
         const curEnd = cur.x + (cur.w > 0 ? cur.w : cur.text.length * cur.fs * 0.52);
         const gap = next.x - curEnd;
-        // Gap < 3px: definitely same word (character spacing artifact)
-        // Gap 3–15px: likely word space — merge but add space
-        // Gap > 15px: separate column item — keep separate
-        if (gap < 3) {
+        // Gap < 2px: definitely same word fragment — merge directly
+        // Gap 2–8px: very tight space — merge with space
+        // Gap > 8px: could be column separation — keep as separate item
+        // We use a conservative threshold so column items stay separate
+        if (gap < 2) {
           cur.text += next.text;
           cur.w = (next.x + next.w) - cur.x;
-        } else if (gap < 15 && gap < cur.fs * 0.8) {
+        } else if (gap < 8 && gap < cur.fs * 0.5) {
           cur.text += ' ' + next.text;
           cur.w = (next.x + next.w) - cur.x;
         } else {
@@ -808,8 +809,12 @@ async function digitalPdfToPages(pdf, filename) {
 
       if (allDashes) return 'dash';
       // Table row: 2+ items in different zones, spanning > 20% of page width, with numbers OR a header keyword
-      const isHeaderRow = /^(S\/N|ITEM|AMOUNT|DESCRIPTION|QTY|PRICE|TOTAL|B\/F|BALANCE)/i.test(text);
-      if (usedZones.size >= 2 && spansPct > 0.2 && (hasNumbers || isHeaderRow)) return 'table';
+      const isHeaderRow = /(S\/N|ITEM|AMOUNT|DESCRIPTION|QTY|PRICE|TOTAL|B\/F|BALANCE|S\.N)/i.test(text);
+      // Also detect rows like "1. Tithes 3,744,200" where first item starts with digit/dot and last item is a number
+      const firstItem = line.items[0]?.text.trim() || '';
+      const lastItem = line.items[line.items.length - 1]?.text.trim() || '';
+      const looksLikeDataRow = /^\d+\.?$/.test(firstItem) || (/^\d/.test(firstItem) && /^[\d,]+$/.test(lastItem.replace(/[N₦$]/g,'')));
+      if (usedZones.size >= 2 && spansPct > 0.15 && (hasNumbers || isHeaderRow || looksLikeDataRow)) return 'table';
       // Signature: exactly 2 all-word items side by side with no numbers
       if (itemCount === 2 && !hasNumbers && spansPct > 0.3 && /^[A-Za-z\s\.]+$/.test(text.replace(/[,\']/g, ''))) return 'signature';
       return 'text';
