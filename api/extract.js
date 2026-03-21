@@ -3,7 +3,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'API key not configured. Please contact the site owner.' });
   }
@@ -23,24 +23,33 @@ Extract ALL text from the document preserving structure exactly. Rules:
 - Output ONLY the document text. No commentary, no explanation, no intro.`;
 
     const body = {
-      contents: [{
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mimeType, data: imageBase64 } }
-        ]
-      }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 4096,
+      temperature: 0.1,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
+          ]
+        }
+      ]
     };
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-      { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-    );
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
 
     const data = await response.json();
-    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || 'Gemini API error' });
+    if (!response.ok) return res.status(response.status).json({ error: data.error?.message || 'Groq API error' });
 
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const text = data.choices?.[0]?.message?.content || '';
     return res.status(200).json({ text });
 
   } catch (err) {
