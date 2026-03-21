@@ -482,16 +482,65 @@ async function extractImage(b64, mime) {
   }
 }
 
-/* ── Render with uncertain highlights ── */
+/* ── Render with uncertain highlights + markdown table support ── */
 function renderExtracted(raw) {
   const body = document.getElementById('doc-body');
-  let html = raw
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Uncertain — click to edit">$1</mark>')
-    .replace(/\n\n/g, '</p><p style="margin-bottom:0.5rem">').replace(/\n/g, '<br>');
-  body.innerHTML = '<p>' + html + '</p>';
+
+  // Split into blocks by double newline
+  const blocks = raw.split(/\n{2,}/);
+  let html = '';
+
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+
+    // Detect markdown table (has | characters and a separator row like |---|)
+    const lines = trimmed.split('\n');
+    const isTable = lines.length >= 2 &&
+      lines[0].includes('|') &&
+      lines.some(l => /^[\s|:-]+$/.test(l));
+
+    if (isTable) {
+      // Parse markdown table into HTML table
+      const tableLines = lines.filter(l => !/^[\s|:-]+$/.test(l)); // remove separator rows
+      let tableHtml = '<table><thead>';
+      let isHead = true;
+      for (const tl of tableLines) {
+        const cells = tl.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length - 1 || (arr.length <= 2));
+        if (!cells.length) continue;
+        if (isHead) {
+          tableHtml += '<tr>' + cells.map(c => `<th contenteditable="true">${escapeHtml(c)}</th>`).join('') + '</tr></thead><tbody>';
+          isHead = false;
+        } else {
+          tableHtml += '<tr>' + cells.map(c => `<td contenteditable="true">${escapeHtml(c)}</td>`).join('') + '</tr>';
+        }
+      }
+      tableHtml += '</tbody></table>';
+      html += tableHtml;
+    } else {
+      // Regular text block
+      const escaped = escapeHtml(trimmed)
+        .replace(/\[(\?[^\]]+\?)\]/g, '<mark class="uncertain" title="Uncertain — click to edit">$1</mark>');
+
+      // Detect if it looks like a heading (all caps, short, no punctuation at end)
+      const isHeading = trimmed === trimmed.toUpperCase() && trimmed.length < 80 && !/[.!?,]$/.test(trimmed) && /[A-Z]/.test(trimmed);
+
+      if (isHeading) {
+        html += `<p style="font-weight:600; margin-top:1rem; margin-bottom:0.25rem;">${escaped}</p>`;
+      } else {
+        const withBreaks = escaped.replace(/\n/g, '<br>');
+        html += `<p style="margin-bottom:0.5rem">${withBreaks}</p>`;
+      }
+    }
+  }
+
+  body.innerHTML = html || '<p><br></p>';
   if (body.querySelectorAll('mark.uncertain').length > 0) document.getElementById('legend').classList.add('show');
   updateWordCount();
+}
+
+function escapeHtml(str) {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 /* ── Formatting ── */
