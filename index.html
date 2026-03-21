@@ -8,6 +8,7 @@
   <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
   <script src="https://unpkg.com/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -397,48 +398,87 @@ dz.addEventListener('drop', e => {
 });
 function handleFile(e) { if (e.target.files[0]) processFile(e.target.files[0]); }
 
+/* ── PDF to image conversion ── */
+async function pdfToImageBase64(file) {
+  const pdfjsLib = window['pdfjs-dist/build/pdf'];
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const allText64 = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2.0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    const b64 = canvas.toDataURL('image/jpeg', 0.92).split(',')[1];
+    allText64.push(b64);
+  }
+  return allText64;
+}
+
 /* ── File processing ── */
 function processFile(file) {
   document.getElementById('upload-area').style.display = 'none';
   document.getElementById('processing').style.display = 'block';
-  const reader = new FileReader();
-  reader.onload = async e => {
-    const b64 = e.target.result.split(',')[1];
-    await extract(b64, file.type || 'image/jpeg');
-  };
-  reader.readAsDataURL(file);
+
+  if (file.type === 'application/pdf') {
+    document.getElementById('proc-sub').textContent = 'Converting PDF pages to images...';
+    pdfToImageBase64(file).then(async (pages) => {
+      // Extract each page and combine results
+      let combined = '';
+      for (let i = 0; i < pages.length; i++) {
+        document.getElementById('proc-sub').textContent = `Extracting page ${i + 1} of ${pages.length}...`;
+        const text = await extractImage(pages[i], 'image/jpeg');
+        if (text) combined += (combined ? '\n\n--- Page ' + (i + 2) + ' ---\n\n' : '') + text;
+      }
+      document.getElementById('processing').style.display = 'none';
+      document.getElementById('editor-wrap').style.display = 'block';
+      renderExtracted(combined);
+    }).catch(err => {
+      document.getElementById('processing').style.display = 'none';
+      document.getElementById('upload-area').style.display = 'block';
+      showErr('PDF processing failed: ' + err.message);
+    });
+  } else {
+    const reader = new FileReader();
+    reader.onload = async e => {
+      const b64 = e.target.result.split(',')[1];
+      const text = await extractImage(b64, file.type || 'image/jpeg');
+      document.getElementById('processing').style.display = 'none';
+      document.getElementById('editor-wrap').style.display = 'block';
+      renderExtracted(text || '');
+    };
+    reader.readAsDataURL(file);
+  }
 }
 
-/* ── AI Extraction — calls Gemini via server proxy ── */
-async function extract(b64, mime) {
+/* ── AI Extraction — calls Groq via server proxy ── */
+async function extractImage(b64, mime) {
   const sub = document.getElementById('proc-sub');
   try {
-    sub.textContent = 'Sending to AI for analysis...';
-
-    // Gemini 1.5 Flash supports images directly; for PDFs we send as application/pdf
-    const effectiveMime = mime === 'application/pdf' ? 'application/pdf' : mime;
-
     sub.textContent = 'AI is reading your document...';
 
     const res = await fetch('/api/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: b64, mimeType: effectiveMime })
+      body: JSON.stringify({ imageBase64: b64, mimeType: mime })
     });
 
     if (!res.ok) { const e = await res.json(); throw new Error(e.error || `Error ${res.status}`); }
 
-    sub.textContent = 'Formatting output...';
     const data = await res.json();
-
-    document.getElementById('processing').style.display = 'none';
-    document.getElementById('editor-wrap').style.display = 'block';
-    renderExtracted(data.text || '');
+    return data.text || '';
 
   } catch (err) {
     document.getElementById('processing').style.display = 'none';
     document.getElementById('upload-area').style.display = 'block';
     showErr('Extraction failed: ' + err.message);
+    return null;
   }
 }
 
