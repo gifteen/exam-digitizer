@@ -409,49 +409,31 @@ function processFile(file) {
   reader.readAsDataURL(file);
 }
 
-/* ── AI Extraction — calls our server proxy ── */
+/* ── AI Extraction — calls Gemini via server proxy ── */
 async function extract(b64, mime) {
   const sub = document.getElementById('proc-sub');
   try {
     sub.textContent = 'Sending to AI for analysis...';
-    const isPdf = mime === 'application/pdf';
-    const contentBlock = isPdf
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } }
-      : { type: 'image', source: { type: 'base64', media_type: mime, data: b64 } };
 
-    const system = `You are a document digitization assistant for school exam papers and scheme-of-work documents.
-
-Extract ALL text from the document preserving structure exactly. Rules:
-- Copy every word exactly as written. NEVER auto-correct spelling.
-- If a word is unclear or ambiguous, wrap it like: [?word?]
-- Preserve numbered lists exactly: 1. 2. 3. and a) b) c) and i) ii) iii)
-- Preserve section headers (like "1st TERM", "WEEK", titles) on their own lines.
-- Separate sections with a blank line.
-- For tables: use markdown format with | pipes |.
-- Output ONLY the document text. No commentary or explanation.`;
+    // Gemini 1.5 Flash supports images directly; for PDFs we send as application/pdf
+    const effectiveMime = mime === 'application/pdf' ? 'application/pdf' : mime;
 
     sub.textContent = 'AI is reading your document...';
 
     const res = await fetch('/api/extract', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-opus-4-5',
-        max_tokens: 4096,
-        system,
-        messages: [{ role: 'user', content: [contentBlock, { type: 'text', text: 'Extract all text from this document.' }] }]
-      })
+      body: JSON.stringify({ imageBase64: b64, mimeType: effectiveMime })
     });
 
-    if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `Error ${res.status}`); }
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error || `Error ${res.status}`); }
 
     sub.textContent = 'Formatting output...';
     const data = await res.json();
-    const text = data.content.map(b => b.text || '').join('\n');
 
     document.getElementById('processing').style.display = 'none';
     document.getElementById('editor-wrap').style.display = 'block';
-    renderExtracted(text);
+    renderExtracted(data.text || '');
 
   } catch (err) {
     document.getElementById('processing').style.display = 'none';
