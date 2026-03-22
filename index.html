@@ -222,9 +222,8 @@
     }
     .page-body table.resizing { cursor: col-resize; user-select: none; }
     .page-body th { overflow: visible; }
-    .page-body td[contenteditable], .page-body th[contenteditable] { cursor: text; outline: none; user-select: text; -webkit-user-select: text; }
-    .page-body table { user-select: none; -webkit-user-select: none; }
-    .page-body td[contenteditable], .page-body th[contenteditable] { user-select: contain; -webkit-user-select: contain; }
+    .page-body td[contenteditable], .page-body th[contenteditable] { cursor: text; outline: none; }
+    .page-body table { border-collapse: collapse; }
     .page-body td[contenteditable]:focus, .page-body th[contenteditable]:focus {
       outline: 2px solid var(--amber) !important;
       outline-offset: -2px;
@@ -596,6 +595,7 @@
           </select>
           <input type="number" id="panel-lh-custom" min="0.8" max="5" step="0.1" placeholder="e.g. 1.75"
             style="display:none;margin-top:4px;width:100%;padding:6px 8px;border:1px solid var(--ink-5);border-radius:var(--radius-sm);font-size:12px;font-family:'DM Sans',sans-serif;outline:none;"
+            onmousedown="saveSelectionBeforeInput()"
             oninput="applyLineSpacing(parseFloat(this.value)||1.85)"
             onfocus="this.style.borderColor='var(--amber)'" onblur="this.style.borderColor='var(--ink-5)'" />
         </div>
@@ -1191,7 +1191,7 @@ function movePage(id, dir) {
   }
   renumberPages();
   syncPageChips();
-  setupPageObserver();
+  setTimeout(updateActivePageFromScroll, 100);
 }
 
 function renumberPages() {
@@ -1425,6 +1425,17 @@ function applySizePanel() {
   document.execCommand('fontSize', false, '7');
   document.querySelectorAll('font[size="7"]').forEach(f => { f.removeAttribute('size'); f.style.fontSize = sz + 'px'; });
 }
+function saveSelectionBeforeInput() {
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount && !sel.isCollapsed) {
+    const node = sel.anchorNode;
+    const inBody = node && (node.nodeType === Node.ELEMENT_NODE
+      ? node.closest('.page-body')
+      : node.parentElement?.closest('.page-body'));
+    if (inBody) _savedRange = sel.getRangeAt(0).cloneRange();
+  }
+}
+
 function handleLineSpacingChange(value) {
   const customInput = document.getElementById('panel-lh-custom');
   if (value === 'custom') {
@@ -1435,35 +1446,6 @@ function handleLineSpacingChange(value) {
   applyLineSpacing(parseFloat(value));
 }
 
-/* ── Scroll-based active page chip via IntersectionObserver ── */
-let _pageObserver = null;
-let _pageRatioMap = new Map(); // cardId → intersectionRatio
-let _lastPageCount = 0;
-
-function setupPageObserver() {
-  if (_pageObserver) _pageObserver.disconnect();
-  _pageRatioMap.clear();
-  const scroll = document.getElementById('pages-scroll');
-  if (!scroll) return;
-  _pageObserver = new IntersectionObserver(entries => {
-    // Update the ratio map with latest values
-    entries.forEach(e => _pageRatioMap.set(e.target.id, e.intersectionRatio));
-    // Find card with highest visible ratio
-    let bestId = null, bestRatio = 0;
-    _pageRatioMap.forEach((ratio, id) => {
-      if (ratio > bestRatio) { bestRatio = ratio; bestId = id; }
-    });
-    if (!bestId || bestRatio < 0.05) return;
-    const cards = [...document.querySelectorAll('.page-card')];
-    const idx = cards.findIndex(c => c.id === bestId);
-    document.querySelectorAll('.page-chip').forEach((c, i) => c.classList.toggle('active', i === idx));
-    document.querySelectorAll('.page-thumb').forEach((t, i) => t.classList.toggle('active', i === idx));
-  }, { root: scroll, threshold: [0, 0.1, 0.3, 0.5, 0.8, 1.0] });
-  document.querySelectorAll('.page-card').forEach(c => {
-    _pageRatioMap.set(c.id, 0);
-    _pageObserver.observe(c);
-  });
-}
 // Saved selection for color apply (sidebar clicks steal focus)
 let _savedRange = null;
 document.addEventListener('mousedown', e => {
@@ -1946,11 +1928,11 @@ function updateStatus() {
   document.getElementById('sb-pages').textContent = `${pages} page${pages!==1?'s':''}`;
   const badge = document.getElementById('page-count-badge');
   if (badge) badge.textContent = pages > 0 ? `· ${pages}` : '';
-  // Only rebuild chips and observer when page count actually changes
   if (pages !== _lastPageCount) {
     _lastPageCount = pages;
     syncPageChips();
-    setupPageObserver();
+    // Re-run scroll tracking after DOM settles
+    setTimeout(updateActivePageFromScroll, 100);
   }
 }
 
@@ -2371,54 +2353,100 @@ window.addEventListener('load', () => {
   if (t) document.getElementById('sb-saved').textContent = 'Last save: ' + t;
   const title = localStorage.getItem('digitize_title');
   if (title) { const el = document.getElementById('doc-title'); if (el) el.value = title; }
+  setupPageObserver();
 });
 
-/* ── Enter key: ensure new paragraph after block elements ── */
+/* ── Active page tracking via scroll (reliable, no observer blinking) ── */
+let _pageObserver = null;
+let _pageRatioMap = new Map();
+let _lastPageCount = 0;
+let _scrollTrackTimer = null;
+
+function setupPageObserver() {
+  // Remove old scroll listener if any
+  const scroll = document.getElementById('pages-scroll');
+  if (!scroll) return;
+  // Use scroll event — far more reliable than IntersectionObserver for tall elements
+  scroll.addEventListener('scroll', onPagesScroll, { passive: true });
+  // Also run once immediately on setup
+  requestAnimationFrame(updateActivePageFromScroll);
+}
+
+function onPagesScroll() {
+  clearTimeout(_scrollTrackTimer);
+  _scrollTrackTimer = setTimeout(updateActivePageFromScroll, 60);
+}
+
+function updateActivePageFromScroll() {
+  const scroll = document.getElementById('pages-scroll');
+  if (!scroll) return;
+  const cards = [...document.querySelectorAll('.page-card')];
+  if (!cards.length) return;
+
+  const scrollRect = scroll.getBoundingClientRect();
+  const viewMid = scrollRect.top + scrollRect.height / 2;
+
+  // Find the card whose center is closest to the scroll viewport's midpoint
+  let bestIdx = 0, bestDist = Infinity;
+  cards.forEach((card, i) => {
+    const r = card.getBoundingClientRect();
+    const cardMid = r.top + r.height / 2;
+    const dist = Math.abs(cardMid - viewMid);
+    if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+  });
+
+  document.querySelectorAll('.page-chip').forEach((c, i) => c.classList.toggle('active', i === bestIdx));
+  document.querySelectorAll('.page-thumb').forEach((t, i) => t.classList.toggle('active', i === bestIdx));
+}
+
+/* ── Enter key: only intercept at end-of-body after a block element ── */
 document.addEventListener('keydown', e => {
   if (e.key !== 'Enter') return;
   const sel = window.getSelection();
   if (!sel.rangeCount) return;
   const range = sel.getRangeAt(0);
 
-  // Find the page-body this belongs to
+  // Find the page-body ancestor
   let node = range.commonAncestorContainer;
   let body = null;
   while (node && node !== document.body) {
-    if (node.classList && node.classList.contains('page-body')) { body = node; break; }
+    if (node.classList?.contains('page-body')) { body = node; break; }
     node = node.parentNode;
   }
   if (!body) return;
 
-  // Check if we're directly inside a TD or TH — allow normal Enter there (line break in cell)
+  // Inside a TD/TH — let the browser handle Enter normally (creates <br> or <div>)
   let cellCheck = range.commonAncestorContainer;
   while (cellCheck && cellCheck !== body) {
-    if (cellCheck.tagName === 'TD' || cellCheck.tagName === 'TH') return; // let browser handle
+    if (cellCheck.tagName === 'TD' || cellCheck.tagName === 'TH') return;
     cellCheck = cellCheck.parentNode;
   }
 
-  // Check if cursor is at the very end of the body and the last meaningful element is a table or div
-  const lastChild = body.lastElementChild;
-  if (!lastChild) return;
-  const isAfterBlock = ['TABLE', 'DIV', 'H2', 'H3'].includes(lastChild.tagName) ||
-    (lastChild.tagName === 'P' && lastChild.textContent.trim() === '' && lastChild === body.lastElementChild);
-
-  // Check if selection is collapsed and at end of body
+  // Only intercept if cursor is collapsed AND at the very end of body
   if (!range.collapsed) return;
   const endRange = document.createRange();
   endRange.selectNodeContents(body);
-  if (range.compareBoundaryPoints(Range.END_TO_END, endRange) < 0) return; // not at end
+  // compareBoundaryPoints: 0 means equal (at end), > 0 means range is after endRange (impossible)
+  // < 0 means cursor is before the end — do nothing
+  if (range.compareBoundaryPoints(Range.END_TO_END, endRange) < 0) return;
 
-  // We're at the end after a block — insert a real paragraph and move cursor into it
+  // Cursor is at the very end — check if the last child is a non-paragraph block
+  const lastChild = body.lastElementChild;
+  if (!lastChild) return;
+  const isBlock = ['TABLE', 'DIV'].includes(lastChild.tagName) ||
+    (lastChild.tagName === 'P' && lastChild.querySelector('table, div.tbl-wrap'));
+  if (!isBlock) return; // browser handles it fine for regular paragraphs
+
+  // Insert a new paragraph after the block and move cursor into it
   e.preventDefault();
   const p = document.createElement('p');
-  p.innerHTML = '<br>';
+  p.appendChild(document.createElement('br'));
   body.appendChild(p);
   const newRange = document.createRange();
-  newRange.setStart(p, 0);
+  newRange.setStartBefore(p.firstChild);
   newRange.collapse(true);
   sel.removeAllRanges();
   sel.addRange(newRange);
-  p.focus();
 });
 document.addEventListener('keydown', e => {
   if (e.key !== 'Tab') return;
@@ -2598,9 +2626,33 @@ function closeMobilePanel() {
   document.querySelectorAll('.mobile-bar-btn').forEach(b => b.classList.remove('active'));
 }
 
-/* ── Resizable table columns ── */
+/* ── Resizable table columns + cross-cell selection guard ── */
 (function() {
   let isResizing = false, startX = 0, startW = 0, currentCol = null, currentTable = null;
+  let _mousedownCell = null; // track which cell mousedown started in
+
+  // Prevent selection from crossing cell boundaries
+  document.addEventListener('mousedown', e => {
+    const cell = e.target.closest('td[contenteditable], th[contenteditable]');
+    _mousedownCell = cell || null;
+  });
+  document.addEventListener('mousemove', e => {
+    if (!_mousedownCell || isResizing) return;
+    if (!(e.buttons & 1)) { _mousedownCell = null; return; } // left button released
+    const overCell = e.target.closest('td[contenteditable], th[contenteditable]');
+    if (overCell && overCell !== _mousedownCell) {
+      // Cursor has drifted into another cell — collapse selection back to origin cell
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount) {
+        const r = document.createRange();
+        r.selectNodeContents(_mousedownCell);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      }
+    }
+  });
+  document.addEventListener('mouseup', () => { _mousedownCell = null; });
 
   document.addEventListener('mousedown', e => {
     if (!e.target.classList.contains('col-resize-handle')) return;
